@@ -1,0 +1,18 @@
+# Local environment and secret-bearing files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local editor / OS metadata
+.DS_Store
+Thumbs.db
+
+# Local archives and internal review material
+/备份/
+/TextDiffTool_v4.html
+/TextDiffTool_v5.html
+/SECURITY_AUDIT_*.md

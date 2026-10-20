@@ -1,0 +1,2903 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; font-src 'none'; base-uri 'none'; form-action 'none'">
+<title>字幕与文本差异对比工具 v5.1 (严格同音版)</title>
+<style>
+  /* ===== Theme System ===== */
+  :root, [data-theme="light"] {
+    --bg-page: #f1f5f9; --bg-surface: #fff; --bg-muted: #f8fafc;
+    --text-primary: #1e293b; --text-secondary: #475569; --text-muted: #94a3b8;
+    --border: #e2e8f0; --border-light: #f1f5f9;
+    --accent: #2563eb; --accent-hover: #1d4ed8;
+    --diff-row-bg: #fffbeb; --same-row-bg: #fff;
+    --del-bg: #fecaca; --del-text: #991b1b; --del-tag-bg: #fee2e2; --del-tag-text: #dc2626;
+    --add-bg: #bbf7d0; --add-text: #166534; --add-tag-bg: #dcfce7; --add-tag-text: #16a34a;
+    --toast-bg: #0f172a; --shadow: 0 4px 16px rgba(0,0,0,0.06);
+    --input-bg: #fff; --stat-bg: #f8fafc;
+  }
+  [data-theme="dark"] {
+    --bg-page: #0f172a; --bg-surface: #1e293b; --bg-muted: #334155;
+    --text-primary: #e2e8f0; --text-secondary: #94a3b8; --text-muted: #64748b;
+    --border: #475569; --border-light: #334155;
+    --accent: #3b82f6; --accent-hover: #60a5fa;
+    --diff-row-bg: #422006; --same-row-bg: #1e293b;
+    --del-bg: #7f1d1d; --del-text: #fca5a5; --del-tag-bg: #991b1b; --del-tag-text: #fecaca;
+    --add-bg: #14532d; --add-text: #86efac; --add-tag-bg: #166534; --add-tag-text: #bbf7d0;
+    --toast-bg: #334155; --shadow: 0 4px 16px rgba(0,0,0,0.3);
+    --input-bg: #0f172a; --stat-bg: #334155;
+  }
+  [data-theme="green"] {
+    --bg-page: #f0fdf4; --bg-surface: #fafff7; --bg-muted: #ecfdf5;
+    --text-primary: #14532d; --text-secondary: #166534; --text-muted: #6b7280;
+    --border: #a7f3d0; --border-light: #d1fae5;
+    --accent: #059669; --accent-hover: #047857;
+    --diff-row-bg: #fefce8; --same-row-bg: #fafff7;
+    --del-bg: #fecaca; --del-text: #991b1b; --del-tag-bg: #fee2e2; --del-tag-text: #dc2626;
+    --add-bg: #bbf7d0; --add-text: #166534; --add-tag-bg: #dcfce7; --add-tag-text: #16a34a;
+    --toast-bg: #065f46; --shadow: 0 4px 16px rgba(0,0,0,0.04);
+    --input-bg: #fff; --stat-bg: #ecfdf5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background-color: var(--bg-page); color: var(--text-primary); padding: 20px;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  .container {
+    max-width: 1400px; margin: 0 auto; background: var(--bg-surface);
+    border-radius: 8px; box-shadow: var(--shadow); padding: 24px;
+    transition: background-color 0.3s;
+  }
+
+  /* Header */
+  .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  h1 { font-size: 18px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .theme-pills { display: flex; gap: 4px; background: var(--bg-muted); padding: 3px; border-radius: 8px; border: 1px solid var(--border); }
+  .tp { border: none; background: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+  .tp.active { background: var(--bg-surface); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .tp:hover { background: var(--bg-surface); }
+
+  /* Buttons */
+  .action-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: background 0.2s; white-space: nowrap; }
+  .btn-primary { background-color: var(--accent); color: white; }
+  .btn-primary:hover { background-color: var(--accent-hover); }
+  .btn-secondary { background-color: #0f766e; color: white; }
+  .btn-secondary:hover { background-color: #115e59; }
+  .btn-share { background-color: #0284c7; color: white; }
+  .btn-share:hover { background-color: #0369a1; }
+  .btn-export { background-color: #7c3aed; color: white; }
+  .btn-export:hover { background-color: #6d28d9; }
+  .btn-clear { background-color: var(--bg-muted); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn-clear:hover { background-color: var(--border); }
+
+  /* Controls */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 14px; background: var(--bg-muted); padding: 14px;
+    border-radius: 6px; border: 1px solid var(--border); margin-bottom: 16px; align-items: center;
+  }
+  .control-group { display: flex; align-items: center; gap: 6px; font-size: 13px; user-select: none; }
+  .control-group input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+  .control-group input[type="text"] { padding: 5px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; width: 180px; background: var(--input-bg); color: var(--text-primary); }
+  .mini-btn { border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); padding: 5px 9px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+  .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .equivalence-panel { display: none; width: 100%; border-top: 1px dashed var(--border); padding-top: 10px; }
+  .equivalence-panel.open { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; }
+  textarea.equivalence-editor { height: 120px; min-height: 80px; font-family: Consolas, "Microsoft YaHei", monospace; font-size: 12px; resize: vertical; }
+  .equivalence-help { grid-column: 1 / -1; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+  .equivalence-actions { display: flex; flex-direction: column; gap: 6px; }
+  .equivalence-preset-bar { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); }
+  .equivalence-preset-bar .mini-btn { font-size: 11px; padding: 3px 8px; }
+  .equivalence-count { font-size: 11px; color: var(--text-muted); padding: 2px 6px; background: var(--bg-muted); border-radius: 3px; }
+  .shortcut-hint { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+  .shortcut-hint kbd { background: var(--bg-muted); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; font-size: 11px; font-family: inherit; }
+
+  /* Input area */
+  .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .input-col h3 { font-size: 13px; color: var(--text-secondary); }
+  .input-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .file-label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--accent); cursor: pointer; padding: 3px 8px; border-radius: 4px; transition: background 0.2s; }
+  .file-label:hover { background: var(--bg-muted); }
+  .file-label input { display: none; }
+  .textarea-wrap { position: relative; }
+  textarea {
+    width: 100%; height: 180px; padding: 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical;
+    background: var(--input-bg); color: var(--text-primary); transition: border-color 0.2s;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .drop-overlay {
+    display: none; position: absolute; inset: 0; background: rgba(37,99,235,0.08);
+    border: 2px dashed var(--accent); border-radius: 6px; z-index: 10;
+    align-items: center; justify-content: center; font-size: 14px; font-weight: 600;
+    color: var(--accent); pointer-events: none;
+  }
+  .textarea-wrap.dragging .drop-overlay { display: flex; }
+  .file-info { font-size: 11px; color: var(--text-muted); }
+  .input-col-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 6px; font-size: 12px; gap: 8px; flex-wrap: wrap;
+  }
+  .char-pill {
+    display: inline-flex; align-items: center; gap: 4px; background: var(--bg-muted);
+    border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px; color: var(--text-secondary);
+  }
+  .char-pill strong { color: var(--accent); font-size: 13px; }
+  .char-sub { font-size: 11px; color: var(--text-muted); }
+
+  /* Audio Speech Speed Panel */
+  .speed-panel {
+    background: var(--bg-muted); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .speed-row-main {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .speed-controls {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px;
+  }
+  .speed-title {
+    font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px;
+  }
+  .speed-time-box {
+    display: inline-flex; align-items: center; gap: 4px; background: var(--input-bg);
+    border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px;
+  }
+  .speed-time-box input {
+    width: 44px; border: none; background: transparent; font-size: 13px;
+    font-weight: 700; text-align: center; color: var(--text-primary); outline: none;
+  }
+  .speed-time-box span { color: var(--text-muted); font-size: 12px; }
+  .speed-source-wrap {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary);
+  }
+  .speed-source-wrap select {
+    padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px;
+    background: var(--input-bg); color: var(--text-primary); font-size: 12px; cursor: pointer; outline: none;
+  }
+  .speed-detected-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(37,99,235,0.1); color: var(--accent); border: 1px dashed var(--accent);
+    padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s;
+  }
+  .speed-detected-tag:hover { background: var(--accent); color: #fff; }
+  .speed-display {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .speed-stat-box { text-align: right; }
+  .speed-val { font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1; }
+  .speed-val small { font-size: 11px; font-weight: normal; color: var(--text-muted); margin-left: 2px; }
+  .speed-badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
+    border-radius: 20px; font-size: 12px; font-weight: 700;
+  }
+  .speed-badge.level-slow { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+  .speed-badge.level-opt { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  .speed-badge.level-good { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+  .speed-badge.level-fast { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+  .speed-badge.level-toofast { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+
+  /* Speed Scale Bar */
+  .speed-scale-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .speed-scale-bar {
+    display: flex; gap: 4px; border-radius: 4px; overflow: hidden; height: 18px;
+    font-size: 10px; line-height: 18px; text-align: center; color: #475569; user-select: none;
+  }
+  .scale-seg {
+    flex: 1; transition: opacity 0.2s, transform 0.2s; opacity: 0.6; font-weight: 500; border-radius: 2px;
+  }
+  .scale-seg.active {
+    opacity: 1; font-weight: 800; transform: scaleY(1.15);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.18); z-index: 1;
+  }
+  .scale-seg-slow { background: #bae6fd; color: #0369a1; }
+  .scale-seg-opt { background: #86efac; color: #14532d; }
+  .scale-seg-good { background: #a7f3d0; color: #064e3b; }
+  .scale-seg-fast { background: #fde68a; color: #78350f; }
+  .scale-seg-toofast { background: #fca5a5; color: #7f1d1d; }
+  .speed-desc { font-size: 11px; color: var(--text-muted); }
+
+  /* Stats dashboard */
+  .stats-dashboard {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
+    margin-bottom: 16px; padding: 14px; background: var(--bg-muted);
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+  .stat-card { text-align: center; padding: 10px 6px; border-radius: 6px; background: var(--bg-surface); }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.del { color: var(--del-tag-text); }
+  .stat-value.add { color: var(--add-tag-text); }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .stat-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.6s ease; }
+
+  /* Results */
+  .results-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+    font-size: 14px; font-weight: 600; color: var(--text-secondary);
+    padding-top: 10px; border-top: 1px solid var(--border);
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; font-weight: normal; }
+  .diff-nav {
+    display: none; position: sticky; top: 0; z-index: 20; align-items: center; gap: 7px;
+    margin: 0 0 8px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent); box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  }
+  .diff-nav.visible { display: flex; }
+  .diff-nav-label { font-size: 12px; color: var(--text-secondary); margin-right: auto; }
+  .diff-nav button { border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); border-radius: 5px; padding: 4px 9px; cursor: pointer; font-size: 12px; }
+  .diff-nav button:hover { border-color: var(--accent); color: var(--accent); }
+  .diff-table tr.active-diff-row { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .diff-table tr { scroll-margin-top: 52px; }
+  .tag-del { background: var(--del-tag-bg); color: var(--del-tag-text); padding: 2px 6px; border-radius: 3px; font-weight: 600; }
+  .tag-add { background: var(--add-tag-bg); color: var(--add-tag-text); padding: 2px 6px; border-radius: 3px; font-weight: 600; }
+
+  .diff-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.6; border: 1px solid var(--border); margin-top: 6px; }
+  .diff-table th { background: var(--bg-muted); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 600; color: var(--text-secondary); }
+  .diff-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-light); vertical-align: top; }
+  .diff-table tr.diff-row { background-color: var(--diff-row-bg); }
+  .diff-table tr.same-row { background-color: var(--same-row-bg); color: var(--text-muted); }
+  .line-num { width: 40px; text-align: center; color: var(--text-muted); background: var(--bg-muted); border-right: 1px solid var(--border); font-size: 12px; user-select: none; }
+  .del-char { background-color: var(--del-bg); color: var(--del-text); text-decoration: line-through; padding: 1px 3px; margin: 0 1px; border-radius: 2px; font-weight: 600; }
+  .add-char { background-color: var(--add-bg); color: var(--add-text); padding: 1px 3px; margin: 0 1px; border-radius: 2px; font-weight: 600; }
+  .homophone-char { background-color: #ede9fe; color: #6d28d9; padding: 1px 3px; margin: 0 1px; border-radius: 2px; font-weight: 700; border-bottom: 1px dashed #8b5cf6; }
+  .equivalent-char { color: var(--text-muted); border-bottom: 1px dotted var(--text-muted); padding: 1px 2px; }
+  [data-theme="dark"] .homophone-char { background-color: #4c1d95; color: #ddd6fe; }
+  .result-cell { position: relative; padding-right: 122px !important; }
+  .timecode-btn {
+    position: absolute; right: 8px; top: 7px; border: 1px solid var(--border); background: var(--bg-surface);
+    color: var(--text-muted); border-radius: 12px; padding: 1px 7px; font-size: 10px; cursor: pointer;
+    opacity: .62; transition: opacity .15s, color .15s, border-color .15s; white-space: nowrap;
+  }
+  .timecode-btn:hover, .timecode-btn:focus { opacity: 1; color: var(--accent); border-color: var(--accent); outline: none; }
+  .row-actions { display: inline-flex; gap: 4px; margin-left: 6px; opacity: 0; transition: opacity .15s; vertical-align: middle; }
+  tr:hover .row-actions, tr.active-diff-row .row-actions { opacity: 1; }
+  .row-action-btn { border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-muted); border-radius: 4px; padding: 1px 6px; font-size: 10px; cursor: pointer; }
+  .row-action-btn:hover { color: var(--accent); border-color: var(--accent); }
+  /* Media Player & Audio/Video Sync Panel */
+  .media-panel {
+    background: var(--bg-muted); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03); transition: all 0.25s ease;
+  }
+  .media-panel.sticky-mode {
+    position: sticky; top: 10px; z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--bg-surface) 97%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  .media-panel-header {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  .media-title-group {
+    display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: var(--text-primary);
+  }
+  .media-tag-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(37,99,235,0.1); color: var(--accent); font-weight: normal;
+  }
+  .media-top-tools {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px;
+  }
+  .media-body {
+    display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap;
+  }
+  .media-video-container {
+    width: 280px; min-height: 150px; background: #000; border-radius: 6px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0;
+  }
+  .media-video-container video {
+    width: 100%; height: 100%; max-height: 160px; object-fit: contain; display: block;
+  }
+  .media-video-placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #94a3b8; font-size: 12px; gap: 6px; padding: 20px; text-align: center;
+  }
+  .media-controls-area {
+    flex: 1; min-width: 280px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;
+  }
+  .media-timeline-row {
+    display: flex; align-items: center; gap: 10px; font-size: 12px; font-variant-numeric: tabular-nums;
+  }
+  .media-progress-bar {
+    flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px;
+    background: var(--border); outline: none; cursor: pointer; transition: background 0.2s;
+  }
+  .media-progress-bar::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  }
+  .media-time-text {
+    font-size: 12px; font-weight: 600; color: var(--text-secondary); min-width: 90px; text-align: right;
+  }
+  .media-btn-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .media-play-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--accent);
+    color: #fff; font-size: 16px; display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform 0.15s, background 0.2s; flex-shrink: 0;
+  }
+  .media-play-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
+  .media-skip-btn {
+    border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary);
+    padding: 5px 9px; border-radius: 6px; font-size: 11px; cursor: pointer;
+  }
+  .media-skip-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .media-rate-select, .media-loop-select {
+    padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--input-bg); color: var(--text-primary); font-size: 12px; cursor: pointer; outline: none;
+  }
+  .media-sync-bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-top: 8px;
+    border-top: 1px dashed var(--border); font-size: 12px;
+  }
+  .media-sync-label {
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; color: var(--text-secondary);
+  }
+  .media-sync-label input[type="checkbox"] {
+    width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer;
+  }
+  .loop-status-pill {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 12px;
+    font-size: 11px; font-weight: 600; background: rgba(139, 92, 246, 0.12); color: #7c3aed;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+  }
+  [data-theme="dark"] .loop-status-pill {
+    background: rgba(139, 92, 246, 0.25); color: #c4b5fd; border-color: rgba(139, 92, 246, 0.4);
+  }
+  .now-playing-pill {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;
+  }
+
+  /* Table Playing Row Highlight */
+  .diff-table tr[data-cue-start] { cursor: pointer; }
+  .diff-table tr[data-cue-start]:hover td:first-child { color: var(--accent); }
+  .diff-table tr.playing-row {
+    outline: 2px solid #8b5cf6 !important;
+    outline-offset: -2px;
+    background-color: rgba(139, 92, 246, 0.1) !important;
+    transition: background-color 0.2s;
+  }
+  [data-theme="dark"] .diff-table tr.playing-row {
+    background-color: rgba(139, 92, 246, 0.2) !important;
+  }
+  .diff-table tr.playing-row .line-num {
+    background: #8b5cf6 !important; color: #fff !important; font-weight: bold; position: relative;
+  }
+  .diff-table tr.playing-row .line-num::after {
+    content: "▶"; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); font-size: 8px;
+  }
+  .timecode-play-btn {
+    border: 1px solid var(--border); background: var(--bg-surface);
+    color: var(--accent); border-radius: 12px; padding: 1px 7px; font-size: 10px; cursor: pointer;
+    opacity: .85; transition: all .15s; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;
+  }
+  .timecode-play-btn:hover { opacity: 1; border-color: var(--accent); background: var(--accent); color: #fff; }
+
+  .empty-tip { text-align: center; padding: 30px; color: var(--text-muted); font-size: 13px; }
+
+  /* History */
+  .history-panel { margin-top: 20px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .history-header {
+    display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;
+    background: var(--bg-muted); cursor: pointer; font-size: 13px; font-weight: 600;
+    color: var(--text-secondary); user-select: none;
+  }
+  .history-header:hover { background: var(--border); }
+  .history-toggle { font-size: 10px; transition: transform 0.2s; }
+  .history-toggle.open { transform: rotate(180deg); }
+  .history-list { max-height: 300px; overflow-y: auto; }
+  .history-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--border-light);
+    font-size: 12px; color: var(--text-secondary); transition: background 0.15s;
+  }
+  .history-item:hover { background: var(--bg-muted); }
+  .history-time { flex-shrink: 0; color: var(--text-muted); width: 100px; }
+  .history-acc { flex-shrink: 0; font-weight: 600; width: 60px; }
+  .history-preview { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
+  .history-actions { flex-shrink: 0; display: flex; gap: 6px; }
+  .history-actions button { border: none; background: none; cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 4px; transition: background 0.15s; }
+  .history-actions button:hover { background: var(--border); }
+  .history-empty { text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px; }
+  .history-clear-wrap { text-align: center; padding: 8px; border-top: 1px solid var(--border-light); }
+  .history-clear-btn { border: none; background: none; color: var(--del-tag-text); cursor: pointer; font-size: 12px; padding: 4px 10px; border-radius: 4px; }
+  .history-clear-btn:hover { background: var(--del-tag-bg); }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--toast-bg); color: white; padding: 10px 20px; border-radius: 6px;
+    font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; z-index: 1000;
+  }
+
+  /* Print */
+  @media print {
+    body { background: #fff; padding: 0; }
+    .container { box-shadow: none; padding: 0; max-width: 100%; }
+    .controls, .input-grid, .action-btns, .toast, .history-panel, .theme-pills, .shortcut-hint, .speed-panel { display: none !important; }
+    .stats-dashboard { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .results-header { border-top: none; margin-bottom: 8px; }
+    .diff-table th, .diff-table td { border: 1px solid #cbd5e1; }
+    .diff-table tr.diff-row { background-color: #fefce8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .del-char { background-color: #fee2e2 !important; color: #dc2626 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .add-char { background-color: #dcfce7 !important; color: #16a34a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  @media (max-width: 768px) {
+    .input-grid { grid-template-columns: 1fr; }
+    .stats-dashboard { grid-template-columns: repeat(3, 1fr); }
+    .result-cell { padding-right: 12px !important; }
+    .timecode-btn { position: static; display: block; margin-top: 6px; width: fit-content; }
+    .header-bar { flex-direction: column; align-items: flex-start; }
+    .speed-row-main { flex-direction: column; align-items: flex-start; }
+    .speed-display { width: 100%; justify-content: space-between; }
+  }
+  /* Floating Bottom Mini Control Bar (向下滚动时自动唤出) */
+  .floating-mini-bar {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(100px);
+    z-index: 999; display: flex; align-items: center; gap: 10px; padding: 7px 18px;
+    background: rgba(15, 23, 42, 0.9); color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); backdrop-filter: blur(14px);
+    opacity: 0; pointer-events: none; transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+    font-size: 13px; max-width: 95vw; user-select: none;
+  }
+  .floating-mini-bar.visible {
+    transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto;
+  }
+  .fmb-play-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: none; background: #2563eb;
+    color: #fff; font-size: 15px; display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform 0.15s, background 0.2s; flex-shrink: 0;
+  }
+  .fmb-play-btn:hover { background: #1d4ed8; transform: scale(1.08); }
+  .fmb-btn {
+    background: rgba(255, 255, 255, 0.12); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.16);
+    padding: 4px 9px; border-radius: 20px; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .fmb-btn:hover { background: rgba(255, 255, 255, 0.25); color: #fff; border-color: rgba(255, 255, 255, 0.3); }
+  .fmb-info {
+    font-size: 12px; color: #cbd5e1; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    border-left: 1px solid rgba(255, 255, 255, 0.2); padding-left: 10px;
+  }
+  .fmb-hint {
+    font-size: 11px; color: #94a3b8; margin-left: 4px; white-space: nowrap;
+  }
+  .fmb-hint kbd {
+    background: rgba(255,255,255,0.18); padding: 1px 5px; border-radius: 3px; font-family: inherit; color: #fff; font-size: 10px;
+  }
+
+  /* HUD Playback Notification (中间大图标提示) */
+  .playback-hud {
+    position: fixed; top: 48%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(15, 23, 42, 0.88); color: #fff; border-radius: 16px; padding: 16px 28px;
+    font-size: 16px; font-weight: bold; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    z-index: 10000; pointer-events: none; opacity: 0; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+  }
+  .playback-hud.show {
+    transform: translate(-50%, -50%) scale(1); opacity: 1;
+  }
+  .playback-hud .hud-icon { font-size: 34px; line-height: 1; }
+
+  /* 浮动条上的复制当前时间码按钮及暂停高亮脉冲 */
+  .fmb-copy-tc {
+    background: rgba(2, 132, 199, 0.25) !important; color: #7dd3fc !important;
+    border-color: rgba(56, 189, 248, 0.35) !important; font-weight: 600;
+  }
+  .fmb-copy-tc:hover {
+    background: rgba(2, 132, 199, 0.45) !important; color: #fff !important;
+  }
+  .fmb-copy-tc.paused-glow {
+    background: rgba(245, 158, 11, 0.28) !important; color: #fef08a !important;
+    border-color: rgba(245, 158, 11, 0.65) !important;
+    animation: fmb-pulse 1.8s infinite;
+  }
+  @keyframes fmb-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+    50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+  }
+
+  /* Share Modal (分享链接弹窗) */
+  .share-modal-overlay {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 9999;
+    display: none; align-items: center; justify-content: center; backdrop-filter: blur(6px);
+  }
+  .share-modal-overlay.open { display: flex; }
+  .share-modal-card {
+    background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 22px; width: 92%; max-width: 560px; box-shadow: 0 20px 45px rgba(0,0,0,0.25);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .share-modal-header {
+    display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+  .share-snapshot-banner {
+    display: none; margin-bottom: 14px; padding: 12px 14px; border: 1px solid #bfdbfe;
+    border-radius: 8px; background: #eff6ff; color: #1e40af; font-size: 13px; line-height: 1.6;
+  }
+  .shared-timecode {
+    float: right; margin-left: 8px; color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1px 7px; font-size: 10px; white-space: nowrap;
+  }
+  body.shared-result-view .controls,
+  body.shared-result-view .speed-panel,
+  body.shared-result-view .input-grid,
+  body.shared-result-view .media-panel,
+  body.shared-result-view .history-panel,
+  body.shared-result-view .diff-nav,
+  body.shared-result-view .floating-mini-bar,
+  body.shared-result-view .header-right .action-btns { display: none !important; }
+  body.shared-result-view .share-snapshot-banner { display: block; }
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<!-- 播放/暂停状态屏幕大图标 HUD 反馈 -->
+<div id="playback-hud" class="playback-hud">
+  <div class="hud-icon" id="hud-icon">⏸</div>
+  <div class="hud-text" id="hud-text">暂停</div>
+</div>
+
+<!-- 悬浮底部极简播控胶囊条 (向下滚动浏览表格时长伴在底部) -->
+<div id="floating-mini-bar" class="floating-mini-bar">
+  <button type="button" class="fmb-play-btn" id="fmb-play-btn" onclick="togglePlayMedia()" title="播放/暂停 (快捷键: 空格 Space)">▶</button>
+  <button type="button" class="fmb-btn" onclick="skipMediaTime(-3)" title="后退3秒重听 (Alt+←)">⏪ -3s</button>
+  <button type="button" class="fmb-btn" onclick="skipMediaTime(3)" title="前进3秒 (Alt+→)">+3s ⏩</button>
+  <button type="button" class="fmb-btn fmb-copy-tc" id="fmb-btn-copy-tc" onclick="copyCurrentPlaybackTimecode()" title="复制当前所在句的开头时间码 (快捷键: C)">⏱ 复制本句开头 <b id="fmb-cur-tc">00:00:00:00</b></button>
+  <button type="button" class="fmb-btn" onclick="loopCurrentSentence()" title="反复循环播放当前这句">🔁 循环本句</button>
+  <button type="button" class="fmb-btn" onclick="navigateDiff(-1)" title="上一处差异 (Alt+↑)">⬆ 上一差异</button>
+  <button type="button" class="fmb-btn" onclick="navigateDiff(1)" title="下一处差异 (Alt+↓)">⬇ 下一差异</button>
+  <div class="fmb-info" id="fmb-now-info">等待播放</div>
+  <div class="fmb-hint"><kbd>Space</kbd> 暂停</div>
+</div>
+
+<!-- 分享链接弹窗 -->
+<div id="share-modal" class="share-modal-overlay" onclick="closeShareModal(event)">
+  <div class="share-modal-card" onclick="event.stopPropagation()">
+    <div class="share-modal-header">
+      <div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;color:var(--text-primary);">
+        <span>🔗 文本比对分享链接已生成</span>
+      </div>
+      <button type="button" class="mini-btn" onclick="closeShareModal()" style="border:none;font-size:16px;">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">
+      已将当前屏幕上的最终对比结果冻结为只读快照。后续部署到 Web 服务器后，将链接发送给他人，对方看到的结果不会因其本地词库不同而重新计算：
+    </div>
+    <div style="display:flex;gap:8px;margin:4px 0;">
+      <input type="text" id="share-link-input" readonly style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-muted);color:var(--text-primary);font-size:12px;font-family:monospace;" onclick="this.select()">
+      <button type="button" class="btn btn-primary" onclick="copyShareLinkFromInput()">📋 复制链接</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);line-height:1.5;">
+      💡 提示：链接包含当前可见的差异行、统计和时间码，不包含本地音视频。链接内容是编码而非加密，请只发送给可信任的人。
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="header-bar">
+    <h1>🔍 文本差异比对与校对工具 <small style="font-size:10px;color:var(--text-muted);font-weight:600;background:rgba(37,99,235,0.1);color:var(--accent);padding:1px 6px;border-radius:4px;">v5.1 严格同音版</small></h1>
+    <div class="header-right">
+      <div class="theme-pills">
+        <button class="tp active" onclick="setTheme('light')" title="浅色模式">☀️</button>
+        <button class="tp" onclick="setTheme('dark')" title="暗色模式">🌙</button>
+        <button class="tp" onclick="setTheme('green')" title="护眼模式">🌿</button>
+      </div>
+      <div class="action-btns">
+        <button class="btn btn-export" onclick="exportHtmlReport()">📄 导出报告</button>
+        <button class="btn btn-secondary" onclick="copyRichText()">📋 复制结果</button>
+        <button class="btn btn-share" onclick="generateShareLink()" title="冻结当前最终结果，生成只读分享链接">🔗 分享结果</button>
+        <button class="btn btn-clear" onclick="clearAll()">🗑️ 清空</button>
+        <button class="btn btn-primary" onclick="runCompare()">▶ 立即对比</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="share-snapshot-banner" id="share-snapshot-banner">
+    🔒 这是分享者生成的只读对比结果快照，内容不会在本机重新计算。快照由链接本身携带，可被持有链接的人修改，因此不能作为防篡改凭证。
+    <span id="share-snapshot-time"></span>
+  </div>
+
+  <div class="controls">
+    <label class="control-group"><input type="checkbox" id="opt-digits" checked> 过滤数字</label>
+    <label class="control-group"><input type="checkbox" id="opt-punct" checked> 过滤标点符号</label>
+    <label class="control-group"><input type="checkbox" id="opt-diff-only" checked> 仅看差异行</label>
+    <div class="control-group">
+      <span>自定义忽略字:</span>
+      <input type="text" id="opt-custom" placeholder="例如: 啊,呀,呢,吧">
+    </div>
+    <label class="control-group"><input type="checkbox" id="opt-equivalence" checked> 忽略严格同音字</label>
+    <button class="mini-btn" type="button" onclick="toggleEquivalencePanel()">⚙️ 严格同音词库</button>
+    <div class="shortcut-hint">
+      <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 对比 &nbsp;
+      <kbd>Alt</kbd>+<kbd>↑/↓</kbd> 切换差异 &nbsp;
+      <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> 导出 &nbsp;
+      <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> 复制
+    </div>
+    <div class="equivalence-panel" id="equivalence-panel">
+      <textarea class="equivalence-editor" id="equivalence-rules" placeholder="每行一组同声调同音词，例如：&#10;他=她=它&#10;在=再&#10;做=坐=座"></textarea>
+      <div class="equivalence-actions">
+        <button class="mini-btn" type="button" onclick="saveEquivalenceRules()">💾 保存并应用</button>
+        <button class="mini-btn" type="button" onclick="clearEquivalenceRules()">清空</button>
+      </div>
+      <div class="equivalence-preset-bar">
+        <button class="mini-btn" type="button" onclick="loadPresetEquivalence()" title="加载内置的严格同音词库（会替换当前编辑框内容）">📦 加载预设词库</button>
+        <button class="mini-btn" type="button" onclick="mergePresetEquivalence()" title="把预设词库追加到当前词库中（不覆盖已有的）">➕ 追加预设</button>
+        <button class="mini-btn" type="button" onclick="resetToPreset()" title="恢复为初始预设词库，清除自定义修改">🔄 恢复预设</button>
+        <span class="equivalence-count" id="equivalence-count">0 组</span>
+      </div>
+      <div class="equivalence-help">
+        仅收录拼音和声调一致的常见同音字；同组词不计入错录/漏字/多字统计。同组用 <b>=</b> 分隔，每行一组。<br>
+        💡 不同声调和近音字不会自动忽略；多音字请按实际语境自行增删，保存后会持久化到浏览器中。
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Speed Calculator Panel -->
+  <div class="speed-panel">
+    <div class="speed-row-main">
+      <div class="speed-controls">
+          <span class="speed-title">🎙️ 整体口播密度</span>
+        <div class="speed-time-box" title="输入音频/视频时长">
+          <span>时长:</span>
+          <input type="number" id="speed-min" min="0" max="999" value="1" oninput="updateSpeedCalc()">
+          <span>分</span>
+          <input type="number" id="speed-sec" min="0" max="59" value="0" oninput="updateSpeedCalc()">
+          <span>秒</span>
+        </div>
+        <div class="speed-source-wrap">
+          <span>测算基准:</span>
+          <select id="speed-source" onchange="updateSpeedCalc()">
+            <option value="right" selected id="opt-src-right">待核对稿 / 实际录音</option>
+            <option value="left" id="opt-src-left">底稿 / 原文</option>
+          </select>
+        </div>
+        <span class="speed-detected-tag" id="speed-detected-tag" style="display:none;" onclick="applyDetectedDuration()" title="点击将字幕识别的时长填入">
+          ⚡ 识别到字幕时长 <u id="detected-time-val">00:00</u> (点击应用)
+        </span>
+      </div>
+      <div class="speed-display">
+        <div class="speed-stat-box">
+          <div class="speed-val"><span id="speed-wpm">—</span> <small>纯文字/分钟</small></div>
+        </div>
+        <div class="speed-badge level-opt" id="speed-badge">等待输入</div>
+      </div>
+    </div>
+    <div class="speed-scale-wrap">
+      <div class="speed-scale-bar">
+        <div class="scale-seg scale-seg-slow" title="< 175 字/分：偏慢，抒情纪录片">偏慢 &lt;175</div>
+        <div class="scale-seg scale-seg-opt" title="175 - 185 字/分：优，黄金语速">★ 优 175-185</div>
+        <div class="scale-seg scale-seg-good" title="185 - 190 字/分：良，适中流畅">良 185-190</div>
+        <div class="scale-seg scale-seg-fast" title="190 - 195 字/分：较快，信息密集">较快 190-195</div>
+        <div class="scale-seg scale-seg-toofast" title="> 195 字/分：偏急促，易听疲劳">快 &gt;195</div>
+      </div>
+      <div class="speed-desc" id="speed-desc">口径：纯文字数 ÷ 完整时长，标点不计字数，由时长自然体现停顿。</div>
+    </div>
+  </div>
+
+  <div class="input-grid">
+    <div class="input-col">
+      <div class="input-header">
+        <h3>底稿 / 原文 (基准)</h3>
+        <label class="file-label">📂 上传文件<input type="file" accept=".txt,.srt,.ass,.ssa,.vtt,.lrc" onchange="handleFile(event,'text-left')"></label>
+      </div>
+      <div class="textarea-wrap" id="drop-left">
+        <textarea id="text-left" placeholder="粘贴底稿，或拖放文件到此处..." oninput="onTextInput()"></textarea>
+        <div class="drop-overlay">📂 松开以加载文件</div>
+      </div>
+      <div class="input-col-footer">
+        <div class="char-pill">纯字数: <strong id="pure-count-left">0</strong> 字 <span class="char-sub">(无标点/数字/时间码)</span></div>
+        <div class="file-info" id="file-info-left"></div>
+      </div>
+    </div>
+    <div class="input-col">
+      <div class="input-header">
+        <h3>比对文本 / 待核对稿</h3>
+        <label class="file-label">📂 上传文件<input type="file" accept=".txt,.srt,.ass,.ssa,.vtt,.lrc" onchange="handleFile(event,'text-right')"></label>
+      </div>
+      <div class="textarea-wrap" id="drop-right">
+        <textarea id="text-right" placeholder="粘贴待比对文本，或拖放文件到此处..." oninput="onTextInput()"></textarea>
+        <div class="drop-overlay">📂 松开以加载文件</div>
+      </div>
+      <div class="input-col-footer">
+        <div class="char-pill">纯字数: <strong id="pure-count-right">0</strong> 字 <span class="char-sub">(无标点/数字/时间码)</span></div>
+        <div class="file-info" id="file-info-right"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Dashboard -->
+  <div class="stats-dashboard" id="stats-dashboard" style="display:none;">
+    <div class="stat-card">
+      <div class="stat-value accent" id="stat-accuracy">—</div>
+      <div class="stat-label">口播内容一致率</div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="stat-bar-fill" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-sub" style="color:#7c3aed;">—</div>
+      <div class="stat-label">错录 / 替换</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value del" id="stat-del">—</div>
+      <div class="stat-label">漏字</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value add" id="stat-add">—</div>
+      <div class="stat-label">多字</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-diff-lines">—</div>
+      <div class="stat-label">差异行</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-label">总字符 (清洗后)</div>
+    </div>
+  </div>
+
+  <!-- Media Player & Audio/Video Sync Panel -->
+  <div class="media-panel" id="media-panel">
+    <div class="media-panel-header">
+      <div class="media-title-group">
+        <span>🎬 音视频联动播放与校对</span>
+        <span class="media-tag-badge" id="media-status-badge">未加载媒体</span>
+        <span class="loop-status-pill" id="loop-status-pill" style="display:none;">🔁 差异循环中</span>
+      </div>
+      <div class="media-top-tools">
+        <label class="file-label" style="font-weight:600;">
+          📁 加载本地音/视频
+          <input type="file" id="media-file-input" accept="video/mp4,video/webm,video/ogg,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg" onchange="handleMediaFile(event)">
+        </label>
+        <button class="mini-btn" type="button" id="btn-toggle-sticky" onclick="toggleMediaSticky()" title="固定在屏幕顶部，滚动时长伴">📌 吸顶固定</button>
+        <button class="mini-btn" type="button" id="btn-toggle-video-view" onclick="toggleVideoVisibility()" title="切换视频画面展示/纯音频模式">📺 隐藏画面</button>
+        <button class="mini-btn" type="button" onclick="closeMedia()" title="卸载当前媒体">✕ 清除</button>
+      </div>
+    </div>
+
+    <div class="media-body">
+      <!-- 视频/音频视窗 -->
+      <div class="media-video-container" id="media-video-wrap">
+        <video id="media-player" playsinline preload="metadata"></video>
+        <div class="media-video-placeholder" id="media-placeholder">
+          <div style="font-size:28px;">🎵 / 🎬</div>
+          <div>点击右上角选择本地 MP4 / MP3 等文件</div>
+          <div style="font-size:11px;opacity:0.7;">支持直接拖拽音视频至此</div>
+        </div>
+      </div>
+
+      <!-- 播放器控制中枢 -->
+      <div class="media-controls-area">
+        <!-- 时间进度条 -->
+        <div class="media-timeline-row">
+          <span style="font-size:11px;color:var(--text-muted);" id="media-time-cur">00:00</span>
+          <input type="range" class="media-progress-bar" id="media-seek-bar" min="0" max="100" value="0" step="0.1" oninput="onMediaSeek(this.value)">
+          <span class="media-time-text" id="media-time-dur">00:00</span>
+        </div>
+
+        <!-- 播放控制按钮栏 -->
+        <div class="media-btn-row">
+          <button type="button" class="media-play-btn" id="btn-media-play" onclick="togglePlayMedia()" title="播放/暂停 (快捷键: 空格)">▶</button>
+          <button type="button" class="media-skip-btn" onclick="skipMediaTime(-3)" title="后退3秒">⏪ -3s</button>
+          <button type="button" class="media-skip-btn" onclick="skipMediaTime(3)" title="前进3秒">+3s ⏩</button>
+          <button type="button" class="mini-btn" id="btn-copy-cur-tc" onclick="copyCurrentPlaybackTimecode()" title="复制当前所在句的开头时间码 (快捷键: C)">⏱ 复制本句开头</button>
+          
+          <select class="media-rate-select" id="media-playback-rate" onchange="changeMediaRate(this.value)" title="播放倍速">
+            <option value="0.75">0.75x</option>
+            <option value="1.0" selected>1.0x (原速)</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="1.75">1.75x</option>
+            <option value="2.0">2.0x</option>
+          </select>
+
+          <div style="display:inline-flex;align-items:center;gap:4px;margin-left:auto;">
+            <span style="font-size:12px;">🔊</span>
+            <input type="range" min="0" max="1" step="0.05" value="1" style="width:70px;accent-color:var(--accent);" oninput="changeMediaVolume(this.value)" title="音量调节">
+          </div>
+        </div>
+
+        <!-- 联动同步控制 -->
+        <div class="media-sync-bar">
+          <label class="media-sync-label" title="播放到对应字幕时间码时，自动高亮并平滑居中滚动至该行">
+            <input type="checkbox" id="opt-auto-scroll" checked>
+            <span>📜 自动跟随跳行</span>
+          </label>
+
+          <label class="media-sync-label" title="点击表格中任意字幕或时间码，播放器立即跳至该处播放">
+            <input type="checkbox" id="opt-click-seek" checked>
+            <span>🎯 点字幕即播</span>
+          </label>
+
+          <label class="media-sync-label" style="font-weight:600;color:var(--accent);" title="重点功能：仅聚焦校对有差异的句子">
+            <input type="checkbox" id="opt-diff-loop" onchange="onDiffLoopToggle()">
+            <span>🔁 差异处自动循环</span>
+          </label>
+
+          <select class="media-loop-select" id="opt-diff-loop-mode" onchange="onDiffLoopModeChange()" title="差异循环播放模式">
+            <option value="single" selected>单处循环：当前差异反复播放</option>
+            <option value="tour">连续巡检：播完跳至下一个差异</option>
+          </select>
+
+          <div class="now-playing-pill" id="now-playing-info" title="当前播放位置">
+            <span>等待播放</span>
+          </div>
+
+          <span class="shortcut-hint" style="margin-left:auto;font-size:11px;color:var(--text-muted);"><kbd>Space</kbd> / <kbd>Esc</kbd> 随时暂停 · 点击高亮行原地暂停</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="results-header">
+    <div>差异结果（按底稿分句）</div>
+    <div class="legend">
+      <span><span class="tag-del">红色删除线</span> = 底稿有而比对文本漏了</span>
+      <span><span class="tag-add">绿色背景</span> = 比对文本多出的字</span>
+      <span><span class="homophone-char">紫色标记</span> = 未确认同音疑似（仍计错）</span>
+      <span><span class="equivalent-char">灰色点线</span> = 严格同音（不计错）</span>
+    </div>
+  </div>
+
+  <div class="diff-nav" id="diff-nav">
+    <span class="diff-nav-label">差异行导航：<span id="diff-nav-current">0</span> / <span id="diff-nav-total">0</span></span>
+    <button type="button" onclick="navigateDiff(-1)" title="快捷键: Alt+↑">⬆ 上一处</button>
+    <button type="button" onclick="navigateDiff(1)" title="快捷键: Alt+↓">⬇ 下一处</button>
+    <span style="font-size:10px;color:var(--text-muted);margin-left:4px;">Alt+↑↓</span>
+  </div>
+
+  <table class="diff-table">
+    <thead>
+      <tr>
+        <th class="line-num">#</th>
+        <th style="width:45%;">底稿原句 (已清洗)</th>
+        <th style="width:55%;">比对结果 (标出多字/少字)</th>
+      </tr>
+    </thead>
+    <tbody id="diff-tbody">
+      <tr><td colspan="3" class="empty-tip">请在上方粘贴内容后点击"立即对比"</td></tr>
+    </tbody>
+  </table>
+
+  <!-- History Panel -->
+  <div class="history-panel">
+    <div class="history-header" onclick="toggleHistory()">
+      📋 历史记录 (<span id="history-count">0</span>)
+      <span class="history-toggle" id="history-arrow">▼</span>
+    </div>
+    <div id="history-body" style="display:none;">
+      <div id="history-list" class="history-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Toast =====
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.innerText = msg; t.style.display = 'block';
+  setTimeout(function() { t.style.display = 'none'; }, 2500);
+}
+
+// ===== Theme System =====
+function setTheme(name) {
+  document.documentElement.setAttribute('data-theme', name);
+  var btns = document.querySelectorAll('.tp');
+  btns.forEach(function(b) { b.classList.remove('active'); });
+  var idx = { light: 0, dark: 1, green: 2 }[name] || 0;
+  btns[idx].classList.add('active');
+  try { localStorage.setItem('diff-theme', name); } catch(e) {}
+}
+
+// ===== File Upload & Drag-Drop =====
+// Timecodes are kept as sidecar metadata. Only cue text enters the diff engine.
+var subtitleCueData = { left: null, right: null };
+
+function cueTimeToSeconds(value) {
+  if (!value) return 0;
+  var clean = String(value).trim().replace(/[\[\]]/g, '').replace(';', ':').replace(',', '.');
+  var parts = clean.split(':');
+  if (parts.length === 4) {
+    var h = parseFloat(parts[0]) || 0;
+    var m = parseFloat(parts[1]) || 0;
+    var s = parseFloat(parts[2]) || 0;
+    var f = parseFloat(parts[3]) || 0;
+    return h * 3600 + m * 60 + s + (f / 25);
+  }
+  if (parts.length === 3) {
+    var h = parseFloat(parts[0]) || 0;
+    var m = parseFloat(parts[1]) || 0;
+    var s = parseFloat(parts[2]) || 0;
+    return h * 3600 + m * 60 + s;
+  }
+  if (parts.length === 2) {
+    var m = parseFloat(parts[0]) || 0;
+    var s = parseFloat(parts[1]) || 0;
+    return m * 60 + s;
+  }
+  return parseFloat(clean) || 0;
+}
+
+function formatCueTime(seconds, withMillis) {
+  seconds = Math.max(0, Number(seconds) || 0);
+  var h = Math.floor(seconds / 3600);
+  var m = Math.floor((seconds % 3600) / 60);
+  var s = Math.floor(seconds % 60);
+  var ms = Math.round((seconds - Math.floor(seconds)) * 1000);
+  if (ms === 1000) { s++; ms = 0; }
+  var base = (h > 0 ? String(h).padStart(2, '0') + ':' : '') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  return withMillis ? base + ',' + String(ms).padStart(3, '0') : base;
+}
+
+function makeCue(index, start, end, value, rawStart, rawEnd) {
+  var clean = (value || '').replace(/<[^>]+>/g, '').replace(/\{[^}]*\}/g, '').replace(/\\[Nn]/g, ' ').trim();
+  return { index: index, start: start, end: end, rawStart: rawStart || '', rawEnd: rawEnd || '', text: clean };
+}
+
+// 宽容通用时间码正则：支持 [00:00:00:00 --> 00:00:08:24], SRT, VTT, LRC, 点号/逗号/冒号/分号
+var TIMECODE_RANGE_RE = /(?:\[\s*)?((?:\d{1,2}:)?\d{1,2}:\d{2}(?:[:;.,]\d{1,3})?)\s*(?:-->|->|~|—|–|-)\s*((?:\d{1,2}:)?\d{1,2}:\d{2}(?:[:;.,]\d{1,3})?)(?:\s*\])?/;
+
+function parseSubtitle(text, ext) {
+  ext = (ext || '').toLowerCase();
+  var normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  var cues = [];
+
+  // 1. 标准 ASS / SSA
+  if (ext === '.ass' || ext === '.ssa' || /^Dialogue:\s*/m.test(normalized)) {
+    var assLines = normalized.split('\n');
+    for (var j = 0; j < assLines.length; j++) {
+      var am = assLines[j].match(/^Dialogue:\s*[^,]*,([^,]*),([^,]*),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,(.*)$/);
+      if (!am) continue;
+      var assCue = makeCue(cues.length + 1, cueTimeToSeconds(am[1]), cueTimeToSeconds(am[2]), am[3], am[1], am[2]);
+      if (assCue && assCue.text) cues.push(assCue);
+    }
+    if (cues.length) return { text: cues.map(function(c){ return c.text; }).join('\n'), cues: cues };
+  }
+
+  // 2. LRC 单时间戳格式
+  if (ext === '.lrc' || (cues.length === 0 && /^\s*\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]/m.test(normalized))) {
+    var lrcLines = normalized.split('\n');
+    for (var k = 0; k < lrcLines.length; k++) {
+      var matches = Array.from(lrcLines[k].matchAll(/\[(\d{1,3}:\d{2}(?:[.:]\d{1,3})?)\]/g));
+      if (!matches.length) continue;
+      var lyric = lrcLines[k].replace(/\[[^\]]+\]/g, '').trim();
+      for (var q = 0; q < matches.length; q++) {
+        var lrcCue = makeCue(cues.length + 1, cueTimeToSeconds(matches[q][1]), 0, lyric, matches[q][1], '');
+        if (lrcCue) cues.push(lrcCue);
+      }
+    }
+    if (cues.length) {
+      cues.sort(function(a,b){ return a.start - b.start; });
+      for (var n = 0; n < cues.length; n++) cues[n].end = cues[n + 1] ? cues[n + 1].start : (cues[n].start + 3);
+      return { text: cues.map(function(c){ return c.text; }).join('\n'), cues: cues };
+    }
+  }
+
+  // 3. 通用全能流解析器：逐行智能状态机，完美支持同行、跨行、SRT、VTT、无括号等全部场景
+  var rawLines = normalized.split('\n');
+  var pendingCue = null;
+
+  for (var i = 0; i < rawLines.length; i++) {
+    var line = rawLines[i].trim();
+    if (!line) {
+      if (pendingCue && pendingCue.text) {
+        cues.push(pendingCue);
+        pendingCue = null;
+      }
+      continue;
+    }
+
+    if (/^WEBVTT\b/i.test(line) || /^NOTE\b/i.test(line)) continue;
+    if (/^\d+$/.test(line) && i + 1 < rawLines.length && TIMECODE_RANGE_RE.test(rawLines[i + 1])) {
+      continue; // 跳过 SRT 编号行
+    }
+
+    var tm = line.match(TIMECODE_RANGE_RE);
+    if (tm) {
+      if (pendingCue) {
+        if (pendingCue.text) cues.push(pendingCue);
+        pendingCue = null;
+      }
+
+      var sSec = cueTimeToSeconds(tm[1]);
+      var eSec = cueTimeToSeconds(tm[2]);
+      if (eSec <= sSec) eSec = sSec + 2; // 保底时长
+
+      var lineRest = line.replace(tm[0], '').trim();
+      lineRest = lineRest.replace(/^[:：\]\s]+/, '').replace(/^[\[\s]+/, '').trim();
+
+      if (lineRest) {
+        var c = makeCue(cues.length + 1, sSec, eSec, lineRest, tm[1], tm[2]);
+        if (c) cues.push(c);
+      } else {
+        pendingCue = {
+          index: cues.length + 1,
+          start: sSec,
+          end: eSec,
+          rawStart: tm[1],
+          rawEnd: tm[2],
+          text: ''
+        };
+      }
+    } else {
+      var cleanLine = line.replace(/<[^>]+>/g, '').replace(/\{[^}]*\}/g, '').trim();
+      if (!cleanLine) continue;
+
+      if (pendingCue) {
+        pendingCue.text = pendingCue.text ? (pendingCue.text + ' ' + cleanLine) : cleanLine;
+      } else {
+        cues.push({
+          index: cues.length + 1,
+          start: null,
+          end: null,
+          rawStart: '',
+          rawEnd: '',
+          text: cleanLine
+        });
+      }
+    }
+  }
+
+  if (pendingCue && pendingCue.text) {
+    cues.push(pendingCue);
+  }
+
+  if (!cues.length) return { text: normalized, cues: [] };
+  return {
+    text: cues.map(function(c){ return c.text; }).filter(Boolean).join('\n'),
+    cues: cues
+  };
+}
+
+function detectPastedSubtitleExt(text) {
+  if (!text) return '';
+  if (/^Dialogue:\s*/m.test(text)) return '.ass';
+  if (/^WEBVTT\b/m.test(text)) return '.vtt';
+  if (/^\s*\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]/m.test(text)) return '.lrc';
+  if (TIMECODE_RANGE_RE.test(text)) return '.inline-frame';
+  return '';
+}
+
+function capturePastedSubtitle(side) {
+  var targetId = side === 'left' ? 'text-left' : 'text-right';
+  var value = document.getElementById(targetId).value;
+  if (!value || !value.trim()) return 0;
+  var ext = detectPastedSubtitleExt(value);
+  if (!ext) return 0;
+  var parsed = parseSubtitle(value, ext);
+  if (!parsed.cues.length) return 0;
+  var timedCount = parsed.cues.filter(function(cue){ return cue.start !== null && cue.start !== undefined; }).length;
+  if (!timedCount) return 0;
+  document.getElementById(targetId).value = parsed.text;
+  subtitleCueData[side] = { cues: parsed.cues, parsedText: parsed.text, fileName: '粘贴的字幕' };
+  document.getElementById('file-info-' + side).textContent = '⏱ 已识别保留 ' + timedCount + ' 条时间码';
+  return timedCount;
+}
+
+function extractSubtitleDuration(raw, ext) {
+  var maxSec = 0;
+  var re = new RegExp(TIMECODE_RANGE_RE.source, 'g');
+  var m;
+  while ((m = re.exec(raw)) !== null) {
+    var endSec = cueTimeToSeconds(m[2]);
+    if (endSec > maxSec) maxSec = endSec;
+  }
+  return maxSec;
+}
+
+var detectedDurationSeconds = 0;
+function applyDetectedDuration() {
+  if (detectedDurationSeconds <= 0) return;
+  var m = Math.floor(detectedDurationSeconds / 60);
+  var s = Math.round(detectedDurationSeconds % 60);
+  document.getElementById('speed-min').value = m;
+  document.getElementById('speed-sec').value = s;
+  updateSpeedCalc();
+  showToast('✅ 已应用识别到的时长: ' + m + '分' + s + '秒');
+}
+
+function handleFile(event, targetId) {
+  var file = event.target.files[0]; if (!file) return;
+  loadFile(file, targetId);
+  event.target.value = '';
+}
+
+function loadFile(file, targetId) {
+  var ext = '.' + file.name.split('.').pop().toLowerCase();
+  var supported = ['.txt', '.srt', '.ass', '.ssa', '.vtt', '.lrc'];
+  if (supported.indexOf(ext) === -1) {
+    showToast('⚠️ 不支持的格式，请使用 ' + supported.join('/'));
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var raw = e.target.result;
+    var detectedExt = ext === '.txt' ? detectPastedSubtitleExt(raw) : '';
+    var parsed = parseSubtitle(raw, detectedExt || ext);
+    document.getElementById(targetId).value = parsed.text;
+    var side = targetId === 'text-left' ? 'left' : 'right';
+    subtitleCueData[side] = parsed.cues.length ? { cues: parsed.cues, parsedText: parsed.text, fileName: file.name } : null;
+    var timedCueCount = parsed.cues.filter(function(cue){ return cue.start !== null && cue.start !== undefined; }).length;
+    document.getElementById('file-info-' + side).textContent =
+      '📄 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB' +
+      (timedCueCount ? '，保留 ' + timedCueCount + ' 条时间码' : '') + ')';
+    
+    // 检查并提取字幕时间
+    var durSec = extractSubtitleDuration(raw, ext);
+    if (durSec > 0) {
+      detectedDurationSeconds = Math.round(durSec);
+      var dm = Math.floor(durSec / 60);
+      var ds = Math.round(durSec % 60);
+      var timeStr = String(dm).padStart(2, '0') + ':' + String(ds).padStart(2, '0');
+      document.getElementById('detected-time-val').textContent = timeStr;
+      document.getElementById('speed-detected-tag').style.display = 'inline-flex';
+      document.getElementById('speed-min').value = dm;
+      document.getElementById('speed-sec').value = ds;
+      showToast('⚡ 已自动识别字幕时长: ' + timeStr);
+    }
+    onTextInput();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function setupDragDrop() {
+  ['drop-left', 'drop-right'].forEach(function(wrapId) {
+    var wrap = document.getElementById(wrapId);
+    var targetId = wrapId === 'drop-left' ? 'text-left' : 'text-right';
+    var counter = 0;
+    wrap.addEventListener('dragenter', function(e) { e.preventDefault(); counter++; wrap.classList.add('dragging'); });
+    wrap.addEventListener('dragleave', function(e) { e.preventDefault(); counter--; if (counter <= 0) { counter = 0; wrap.classList.remove('dragging'); } });
+    wrap.addEventListener('dragover', function(e) { e.preventDefault(); });
+    wrap.addEventListener('drop', function(e) {
+      e.preventDefault(); counter = 0; wrap.classList.remove('dragging');
+      if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0], targetId);
+    });
+  });
+}
+
+// ===== Core Diff (LCS) =====
+function diffChars(str1, str2) {
+  var m = str1.length, n = str2.length;
+  var dp = [];
+  for (var i = 0; i <= m; i++) dp[i] = new Array(n + 1).fill(0);
+  for (var i = 1; i <= m; i++)
+    for (var j = 1; j <= n; j++)
+      dp[i][j] = (str1[i-1] === str2[j-1]) ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  var i = m, j = n, result = [];
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && str1[i-1] === str2[j-1]) { result.push({type:'same',val:str1[i-1],leftIndex:i-1,rightIndex:j-1}); i--; j--; }
+    else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) { result.push({type:'add',val:str2[j-1],rightIndex:j-1}); j--; }
+    else if (i > 0 && (j === 0 || dp[i][j-1] < dp[i-1][j])) { result.push({type:'del',val:str1[i-1],leftIndex:i-1}); i--; }
+  }
+  return result.reverse();
+}
+
+function cleanText(text) {
+  var res = text.replace(/\s/g, '');
+  if (document.getElementById('opt-digits').checked) res = res.replace(/[0-9０-９]/g, '');
+  if (document.getElementById('opt-punct').checked)
+    res = res.replace(/[，。！？；：、（）《》【】“”‘’「」『』〈〉〔〕"'·…—～,.!?;:()\[\]{}<>\/\\_\s-]/g, '');
+  var custom = document.getElementById('opt-custom').value.trim();
+  if (custom) {
+    var chars = custom.split(/[,，\s]+/).filter(Boolean);
+    for (var i = 0; i < chars.length; i++) res = res.split(chars[i]).join('');
+  }
+  return res;
+}
+
+// Conservative offline list for frequent transcription confusions. It is a hint,
+// not an automatic ignore rule: homophones still reduce textual accuracy.
+var COMMON_HOMOPHONE_GROUPS = [
+  '的地得','他她它塌','在再','已以蚁','做坐座','向像象项','需须虚',
+  '声生升牲','时十实识食','是事市式试示视士世室势释饰适','录路陆鹿','数树术束述竖',
+  '才材财裁','帐账仗','权全泉','力利立历丽例励粒','气器汽弃','记计纪技际继寄',
+  '经京精惊睛','成城诚程承','名明鸣','文闻纹','原元园圆源缘','愿院怨','到道',
+  '有友','又右幼','会汇惠慧绘','主煮嘱','住助注祝驻','位味未卫','围维唯',
+  '必毕闭壁碧避','换患幻唤','还环','正证政症','节杰洁结','界借届','同童铜',
+  '工公功攻','组阻祖','曾层','分纷芬','份奋'
+];
+// v2 使用新的存储键，避免沿用 V5 中混有不同声调、近音字的旧规则。
+var EQUIVALENCE_KEY = 'diff-tool-strict-homophone-rules-v2';
+
+// ===== 内置严格同音词库 =====
+// 只合并普通话拼音及声调一致的常见读音；不同声调、近音字、形近字不自动忽略。
+// 少数多音字只覆盖最常见语境，用户仍可按实际音频增删。
+var PRESET_EQUIVALENCE_RULES = [
+  '他=她=它',
+  '在=再',
+  '做=坐=座',
+  '已=以',
+  '向=像=象',
+  '需=须',
+  '声=生=升',
+  '录=路=陆',
+  '记=计=技=际=继=寄=济',
+  '力=利=立=历=丽=例=励',
+  '气=器=汽',
+  '经=京=精=惊=睛=晶',
+  '成=城=诚=程=承',
+  '名=明=鸣',
+  '文=闻=纹',
+  '原=元=园=圆=源=缘',
+  '到=道',
+  '有=友',
+  '又=右=幼',
+  '主=煮',
+  '住=助=注=驻=祝',
+  '位=味=未=卫',
+  '围=维=唯',
+  '必=毕=闭=壁=碧=避',
+  '换=患',
+  '证=政=症',
+  '节=杰=洁=截',
+  '界=借=届',
+  '同=童=铜',
+  '工=公=功=攻=弓',
+  '组=阻=祖',
+  '纷=芬',
+  '份=奋',
+  '权=全=泉',
+  '愿=院',
+  '时=十=实=识=食',
+  '是=事=市=式=试=示=视=士=世=室=势=释=适',
+  '树=术=束=述=竖',
+  '才=材=财=裁',
+  '帐=账',
+  '因=音=阴',
+  '新=心=辛=芯=欣',
+  '清=青=轻',
+  '部=步=布',
+  '规=归=龟',
+  '然=燃',
+  '任=认',
+  '商=伤',
+  '物=务=雾=误',
+  '型=形=刑',
+  '壹=依=衣=医',
+  '制=治=致=智=置',
+  '终=忠=钟',
+  '自=字',
+].join('\n');
+
+function toggleEquivalencePanel() {
+  document.getElementById('equivalence-panel').classList.toggle('open');
+  updateEquivalenceCount();
+}
+
+function getEquivalenceGroups() {
+  if (!document.getElementById('opt-equivalence').checked) return [];
+  var raw = document.getElementById('equivalence-rules').value;
+  return raw.split(/[\n;；]+/).map(function(line) {
+    return Array.from(new Set(line.split(/[=＝]/).map(function(item){ return item.trim(); }).filter(Boolean)));
+  }).filter(function(group){ return group.length >= 2; });
+}
+
+function isEquivalentPair(a, b) {
+  if (!a || !b || a === b) return false;
+  return getEquivalenceGroups().some(function(group){ return group.indexOf(a) !== -1 && group.indexOf(b) !== -1; });
+}
+
+function updateEquivalenceCount() {
+  var groups = getEquivalenceGroups();
+  var el = document.getElementById('equivalence-count');
+  if (el) el.textContent = groups.length + ' 组';
+}
+
+function saveEquivalenceRules() {
+  var value = document.getElementById('equivalence-rules').value.trim();
+  try { localStorage.setItem(EQUIVALENCE_KEY, value); } catch(e) {}
+  updateEquivalenceCount();
+  showToast('✅ 严格同音词库已保存并应用');
+  if (document.getElementById('text-left').value.trim() || document.getElementById('text-right').value.trim()) runCompare();
+}
+
+function clearEquivalenceRules() {
+  document.getElementById('equivalence-rules').value = '';
+  try { localStorage.removeItem(EQUIVALENCE_KEY); } catch(e) {}
+  updateEquivalenceCount();
+  showToast('已清空严格同音词库');
+  if (document.getElementById('text-left').value.trim() || document.getElementById('text-right').value.trim()) runCompare();
+}
+
+function loadPresetEquivalence() {
+  document.getElementById('equivalence-rules').value = PRESET_EQUIVALENCE_RULES;
+  updateEquivalenceCount();
+  showToast('📦 已加载预设词库（' + getEquivalenceGroups().length + ' 组），可自行编辑后保存');
+}
+
+function mergePresetEquivalence() {
+  var current = document.getElementById('equivalence-rules').value.trim();
+  var presetLines = PRESET_EQUIVALENCE_RULES.split('\n');
+  var currentLines = current ? current.split('\n').map(function(l){ return l.trim(); }).filter(Boolean) : [];
+  // 把当前已有的首词做成 Set，避免重复
+  var existingKeys = new Set();
+  currentLines.forEach(function(line) {
+    var parts = line.split(/[=＝]/);
+    if (parts.length >= 2) existingKeys.add(parts[0].trim());
+  });
+  var added = 0;
+  presetLines.forEach(function(line) {
+    var parts = line.split(/[=＝]/);
+    if (parts.length >= 2 && !existingKeys.has(parts[0].trim())) {
+      currentLines.push(line);
+      added++;
+    }
+  });
+  document.getElementById('equivalence-rules').value = currentLines.join('\n');
+  updateEquivalenceCount();
+  showToast('➕ 已追加 ' + added + ' 组预设词（跳过已有项）');
+}
+
+function resetToPreset() {
+  document.getElementById('equivalence-rules').value = PRESET_EQUIVALENCE_RULES;
+  try { localStorage.setItem(EQUIVALENCE_KEY, PRESET_EQUIVALENCE_RULES); } catch(e) {}
+  updateEquivalenceCount();
+  showToast('🔄 已恢复为预设词库并保存');
+  if (document.getElementById('text-left').value.trim() || document.getElementById('text-right').value.trim()) runCompare();
+}
+
+function isCommonHomophone(a, b) {
+  if (!a || !b || a === b) return false;
+  return COMMON_HOMOPHONE_GROUPS.some(function(group){ return group.indexOf(a) !== -1 && group.indexOf(b) !== -1; });
+}
+
+function analyzeDiffs(diffs) {
+  var substitutionCount = 0, deletionCount = 0, insertionCount = 0, homophoneCount = 0, equivalentCount = 0;
+  var i = 0;
+  while (i < diffs.length) {
+    if (diffs[i].type === 'same') { i++; continue; }
+    var end = i, dels = [], adds = [];
+    while (end < diffs.length && diffs[end].type !== 'same') {
+      if (diffs[end].type === 'del') dels.push(diffs[end]);
+      if (diffs[end].type === 'add') adds.push(diffs[end]);
+      end++;
+    }
+    var delText = dels.map(function(d){ return d.val; }).join('');
+    var addText = adds.map(function(d){ return d.val; }).join('');
+    if (isEquivalentPair(delText, addText)) {
+      dels.concat(adds).forEach(function(d){ d.equivalent = true; });
+      equivalentCount++;
+      i = end;
+      continue;
+    }
+    var paired = Math.min(dels.length, adds.length);
+    for (var p = 0; p < paired; p++) {
+      dels[p].isSubstitution = adds[p].isSubstitution = true;
+      dels[p].pairVal = adds[p].val;
+      adds[p].pairVal = dels[p].val;
+      if (isEquivalentPair(dels[p].val, adds[p].val)) {
+        dels[p].equivalent = adds[p].equivalent = true;
+        equivalentCount++;
+      } else {
+        substitutionCount++;
+      }
+      if (!dels[p].equivalent && isCommonHomophone(dels[p].val, adds[p].val)) {
+        dels[p].homophone = adds[p].homophone = true;
+        homophoneCount++;
+      }
+    }
+    deletionCount += dels.length - paired;
+    insertionCount += adds.length - paired;
+    i = end;
+  }
+  return { substitutions: substitutionCount, deletions: deletionCount, insertions: insertionCount, homophones: homophoneCount, equivalents: equivalentCount };
+}
+
+// ===== Word Count & Speech Speed =====
+function getPureCharCount(text) {
+  if (!text) return 0;
+  var res = text;
+  // 1. 去除时间码 (如 00:00:12,345 或 01:23.45 或 [01:23.45] 或 -->)
+  res = res.replace(/\[?\b\d{1,2}:\d{2}(?::\d{2})?(?:[,\.]\d{1,3})?\]?/g, '');
+  res = res.replace(/-->/g, '');
+  // 2. 去除 SRT 序号独立行
+  res = res.replace(/^\d+\s*$/gm, '');
+  // 3. 去除所有数字 (半角与全角)
+  res = res.replace(/[0-9０-９]/g, '');
+  // 4. 去除标点符号、特殊符号与空白换行符
+  res = res.replace(/[，。！？；：、（）《》【】“”‘’·…—～·`~!@#$%^&*()_\-+=\[\]{}\\|;:'",.<>\/?·！￥…（）—【】、；：‘’“”《》，。？、‘’“”『』「」〈〉〔〕\\\/~#\$%\^&\*_\+=\|<>`\s\u3000]/g, '');
+  return res.length;
+}
+
+function updateCharCounts() {
+  var leftRaw = document.getElementById('text-left').value;
+  var rightRaw = document.getElementById('text-right').value;
+  var leftCount = getPureCharCount(leftRaw);
+  var rightCount = getPureCharCount(rightRaw);
+  document.getElementById('pure-count-left').textContent = leftCount;
+  document.getElementById('pure-count-right').textContent = rightCount;
+
+  var optLeft = document.getElementById('opt-src-left');
+  var optRight = document.getElementById('opt-src-right');
+  if (optLeft) optLeft.text = '底稿 / 原文 (' + leftCount + ' 字)';
+  if (optRight) optRight.text = '待核对稿 / 实际录音 (' + rightCount + ' 字)';
+}
+
+var lastSpeedInfo = null;
+
+function getSpeedRating(wpm) {
+  if (wpm < 175) {
+    return { level: 'slow', label: '偏慢', title: '从容抒情', desc: '< 175 字/分：语速较慢，从容抒情，适合纪录片、散文诗歌或助眠类音频。' };
+  } else if (wpm <= 185) {
+    return { level: 'opt', label: '★ 优', title: '黄金语速', desc: '175-185 字/分：黄金播音语速，吐字清晰、气口充裕，听感最自然舒适！' };
+  } else if (wpm <= 190) {
+    return { level: 'good', label: '良', title: '适中流畅', desc: '185-190 字/分：节奏适度流畅，适合常规口播、知识科普与新闻解说。' };
+  } else if (wpm <= 195) {
+    return { level: 'fast', label: '较快', title: '信息密集', desc: '190-195 字/分：信息密度偏大，适合快节奏短视频，剪辑时注意咬字是否清晰。' };
+  } else {
+    return { level: 'toofast', label: '快', title: '偏急促', desc: '195+ 字/分：语速偏快或过急，容易产生听觉压迫感，剪辑时建议适当留气口或微调速。' };
+  }
+}
+
+function updateSpeedCalc() {
+  var min = parseFloat(document.getElementById('speed-min').value) || 0;
+  var sec = parseFloat(document.getElementById('speed-sec').value) || 0;
+  var totalMinutes = min + (sec / 60);
+
+  var source = document.getElementById('speed-source').value;
+  var leftCount = getPureCharCount(document.getElementById('text-left').value);
+  var rightCount = getPureCharCount(document.getElementById('text-right').value);
+  var charCount = source === 'left' ? leftCount : rightCount;
+
+  var wpmEl = document.getElementById('speed-wpm');
+  var tagEl = document.getElementById('speed-badge');
+  var descEl = document.getElementById('speed-desc');
+
+  var segs = document.querySelectorAll('.scale-seg');
+  segs.forEach(function(s) { s.classList.remove('active'); });
+
+  if (totalMinutes <= 0 || charCount <= 0) {
+    wpmEl.textContent = '—';
+    tagEl.className = 'speed-badge';
+    tagEl.textContent = '等待输入';
+    if (descEl) descEl.textContent = '口径：纯文字数 ÷ 完整时长，标点不计字数，由时长自然体现停顿。';
+    lastSpeedInfo = null;
+    return;
+  }
+
+  var wpm = Math.round(charCount / totalMinutes);
+  wpmEl.textContent = wpm;
+  var rating = getSpeedRating(wpm);
+  tagEl.className = 'speed-badge level-' + rating.level;
+  tagEl.textContent = rating.label + ' · ' + rating.title;
+  if (descEl) descEl.textContent = rating.desc;
+
+  var activeSeg = document.querySelector('.scale-seg-' + rating.level);
+  if (activeSeg) activeSeg.classList.add('active');
+
+  lastSpeedInfo = {
+    wpm: wpm,
+    rating: rating,
+    charCount: charCount,
+    source: source === 'left' ? '底稿' : '待核对稿',
+    durationStr: min + '分' + sec + '秒'
+  };
+}
+
+function onTextInput() {
+  updateCharCounts();
+  updateSpeedCalc();
+}
+
+function getCueRanges(side) {
+  var data = subtitleCueData[side];
+  if (!data || !data.cues || !data.cues.length) return [];
+  var cursor = 0;
+  return data.cues.map(function(cue) {
+    var len = cleanText(cue.text || '').length;
+    var range = { from: cursor, to: cursor + len, cue: cue, side: side, fileName: data.fileName };
+    cursor += len;
+    return range;
+  });
+}
+
+function findCueInfo(sentDiffs, allDiffs, cursorIndex, lineIndex) {
+  var configs = [
+    { ranges: getCueRanges('right'), key: 'rightIndex', sideLabel: '待核对稿' },
+    { ranges: getCueRanges('left'), key: 'leftIndex', sideLabel: '底稿' }
+  ];
+  for (var c = 0; c < configs.length; c++) {
+    var cfg = configs[c];
+    if (!cfg.ranges.length) continue;
+    var indices = sentDiffs.map(function(d){ return d[cfg.key]; }).filter(function(v){ return Number.isInteger(v); });
+    var approximate = false;
+    if (!indices.length) {
+      approximate = true;
+      for (var back = cursorIndex - 1; back >= 0 && !indices.length; back--) if (Number.isInteger(allDiffs[back][cfg.key])) indices.push(allDiffs[back][cfg.key]);
+      for (var next = cursorIndex; next < allDiffs.length && !indices.length; next++) if (Number.isInteger(allDiffs[next][cfg.key])) indices.push(allDiffs[next][cfg.key]);
+    }
+    if (indices.length) {
+      var min = Math.min.apply(Math, indices), max = Math.max.apply(Math, indices);
+      var matched = cfg.ranges.filter(function(r){
+        return r.to > min && r.from <= max && r.cue.start !== null && r.cue.start !== undefined;
+      });
+      if (!matched.length) {
+        var timedRanges = cfg.ranges.filter(function(r){ return r.cue.start !== null && r.cue.start !== undefined; });
+        var nearest = timedRanges.reduce(function(best, r){
+          var distance = min < r.from ? r.from - min : (min >= r.to ? min - r.to + 1 : 0);
+          return !best || distance < best.distance ? { range:r, distance:distance } : best;
+        }, null);
+        if (nearest) matched = [nearest.range];
+        approximate = true;
+      }
+      if (matched.length) {
+        return {
+          start: matched[0].cue.start,
+          end: matched[matched.length - 1].cue.end,
+          rawStart: matched[0].cue.rawStart || '',
+          rawEnd: matched[matched.length - 1].cue.rawEnd || '',
+          approximate: approximate,
+          sideLabel: cfg.sideLabel,
+          fileName: matched[0].fileName
+        };
+      }
+    }
+
+    // 强力保底：如果字符 LCS 未能关联，但该侧字幕存在对应序号的有效 cue，直接使用
+    if (lineIndex !== undefined && lineIndex !== null && cfg.ranges[lineIndex] && cfg.ranges[lineIndex].cue && cfg.ranges[lineIndex].cue.start !== null) {
+      var fallbackCue = cfg.ranges[lineIndex].cue;
+      return {
+        start: fallbackCue.start,
+        end: fallbackCue.end,
+        rawStart: fallbackCue.rawStart || '',
+        rawEnd: fallbackCue.rawEnd || '',
+        approximate: true,
+        sideLabel: cfg.sideLabel,
+        fileName: cfg.fileName
+      };
+    }
+  }
+  return null;
+}
+
+function timecodeButtonHtml(info) {
+  if (!info) return '';
+  var start = info.rawStart || formatCueTime(info.start, true);
+  var end = info.rawEnd || formatCueTime(info.end, true);
+  var full = start + (info.end > info.start ? ' --> ' + end : '');
+  var short = info.rawStart && info.rawStart.split(':').length === 4 ? info.rawStart : formatCueTime(info.start, false);
+  var title = (info.approximate ? '邻近定位（估算）' : '精确定位') + '·' + info.sideLabel + '：' + full + '。点击定位播放 (Shift+点击复制起始时间: ' + start + ')';
+  return '<button class="timecode-btn" type="button" data-timecode="' + start + '" data-timecode-full="' + full + '" data-cue-start="' + (info.start != null ? info.start : '') + '" onclick="handleTimecodeClick(this, event)" title="' + title + '">▶ ' + (info.approximate ? '≈' : '') + short + '</button>';
+}
+
+function handleTimecodeClick(button, event) {
+  event.stopPropagation();
+  var startSec = parseFloat(button.getAttribute('data-cue-start'));
+  var value = button.getAttribute('data-timecode') || '';
+  if (event.shiftKey || !hasLoadedMedia()) {
+    copyTimecodeText(value);
+  } else {
+    if (!isNaN(startSec)) {
+      seekAndPlayMedia(startSec);
+      showToast('▶ 已定位播放: ' + button.textContent.replace('▶', '').trim());
+    } else {
+      copyTimecodeText(value);
+    }
+  }
+}
+
+function copyTimecodeText(value) {
+  if (!value) return;
+  // 仅复制起始时间码：去除任何区段箭头或中括号
+  var startOnly = value.split(/\s*(?:-->|->|~|—|–|-)\s*/)[0].trim().replace(/^[\[\s]+/, '').replace(/[\]\s]+$/, '');
+  if (!startOnly) startOnly = value.trim();
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(startOnly).then(function(){ showToast('✅ 已复制起始时间码 ' + startOnly); }).catch(function(){ fallbackCopy(startOnly); });
+  } else fallbackCopy(startOnly);
+}
+
+function copyTimecode(button) {
+  var value = button.getAttribute('data-timecode') || '';
+  copyTimecodeText(value);
+}
+
+function rowActionsHtml(cueInfo) {
+  var playBtn = (cueInfo && cueInfo.start !== null && cueInfo.start !== undefined)
+    ? '<button class="row-action-btn" type="button" onclick="handleRowPlayClick(this, event)" title="播放此句">▶ 播放</button>'
+    : '';
+  return '<span class="row-actions">' + playBtn + '<button class="row-action-btn" type="button" onclick="copyResultRow(this)">📋 复制本行</button></span>';
+}
+
+function handleRowPlayClick(button, event) {
+  event.stopPropagation();
+  var row = button.closest('tr');
+  if (!row) return;
+  var startStr = row.getAttribute('data-cue-start');
+  if (startStr !== null && startStr !== '') {
+    seekAndPlayMedia(parseFloat(startStr));
+  } else {
+    showToast('⚠️ 该行未解析到有效时间码');
+  }
+}
+
+function copyResultRow(button) {
+  var row = button.closest('tr');
+  if (!row || row.cells.length < 3) return;
+  var resultClone = row.cells[2].cloneNode(true);
+  resultClone.querySelectorAll('.timecode-btn,.row-actions').forEach(function(el){ el.remove(); });
+  var timeBtn = row.querySelector('.timecode-btn');
+  var text = '第' + row.cells[0].textContent.trim() + '行\n底稿：' + row.cells[1].textContent.trim() + '\n对比：' + resultClone.textContent.trim();
+  if (timeBtn) {
+    var rawTc = timeBtn.getAttribute('data-timecode') || '';
+    var startOnly = rawTc.split(/\s*(?:-->|->|~)\s*/)[0].trim().replace(/^[\[\s]+/, '').replace(/[\]\s]+$/, '');
+    if (startOnly) text += '\n时间：' + startOnly;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ showToast('✅ 已复制本行差异'); }).catch(function(){ fallbackCopy(text); });
+  } else fallbackCopy(text);
+}
+
+var currentDiffRowIndex = -1;
+
+function getVisibleDiffRows() {
+  return Array.from(document.querySelectorAll('#diff-tbody tr.diff-row'));
+}
+
+function refreshDiffNavigation() {
+  var rows = getVisibleDiffRows();
+  currentDiffRowIndex = -1;
+  document.getElementById('diff-nav-total').textContent = rows.length;
+  document.getElementById('diff-nav-current').textContent = '0';
+  document.getElementById('diff-nav').classList.toggle('visible', rows.length > 0);
+  buildDiffSegments();
+}
+
+function navigateDiff(direction) {
+  var rows = getVisibleDiffRows();
+  if (!rows.length) { showToast('当前没有可导航的差异行'); return; }
+  rows.forEach(function(row){ row.classList.remove('active-diff-row'); });
+  if (currentDiffRowIndex < 0) currentDiffRowIndex = direction > 0 ? 0 : rows.length - 1;
+  else currentDiffRowIndex = (currentDiffRowIndex + direction + rows.length) % rows.length;
+  var target = rows[currentDiffRowIndex];
+  target.classList.add('active-diff-row');
+  document.getElementById('diff-nav-current').textContent = currentDiffRowIndex + 1;
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // 音视频联动：如果已加载媒体且开启了差异循环或点播，定位播放该差异行！
+  if (hasLoadedMedia()) {
+    var startVal = target.getAttribute('data-cue-start');
+    if (startVal !== null && startVal !== '') {
+      seekAndPlayMedia(parseFloat(startVal));
+    }
+  }
+}
+
+// ===== Stats =====
+var lastStats = null;
+function calcAndShowStats(diffs, diffLineCount) {
+  var baseTotal = 0;
+  for (var i = 0; i < diffs.length; i++) {
+    if (diffs[i].type === 'same' || diffs[i].type === 'del') baseTotal++;
+  }
+  var analysis = analyzeDiffs(diffs);
+  var errors = analysis.substitutions + analysis.deletions + analysis.insertions;
+  var accuracy = baseTotal > 0 ? Math.max(0, (1 - errors / baseTotal) * 100) : (analysis.insertions > 0 ? 0 : 100);
+
+  lastStats = {
+    accuracy: accuracy, subCount: analysis.substitutions, delCount: analysis.deletions,
+    addCount: analysis.insertions, homophoneCount: analysis.homophones,
+    equivalentCount: analysis.equivalents,
+    diffLineCount: diffLineCount, totalChars: baseTotal
+  };
+
+  document.getElementById('stats-dashboard').style.display = 'grid';
+  document.getElementById('stat-accuracy').textContent = accuracy.toFixed(1) + '%';
+  document.getElementById('stat-sub').textContent = analysis.substitutions + ' 字' + (analysis.homophones ? ' · ' + analysis.homophones + '疑似同音' : '') + (analysis.equivalents ? ' · ' + analysis.equivalents + '严格同音已忽略' : '');
+  document.getElementById('stat-del').textContent = analysis.deletions + ' 字';
+  document.getElementById('stat-add').textContent = analysis.insertions + ' 字';
+  document.getElementById('stat-diff-lines').textContent = diffLineCount + ' 行';
+  document.getElementById('stat-total').textContent = baseTotal;
+  document.getElementById('stat-bar-fill').style.width = accuracy.toFixed(1) + '%';
+}
+
+// ===== Compare =====
+function runCompare() {
+  var pastedLeftCues = capturePastedSubtitle('left');
+  var pastedRightCues = capturePastedSubtitle('right');
+  if (pastedLeftCues || pastedRightCues) {
+    var totalPastedCues = pastedLeftCues + pastedRightCues;
+    showToast('⏱ 已识别粘贴的字幕，保留 ' + totalPastedCues + ' 条时间码');
+    onTextInput();
+  }
+  var rawLeft = document.getElementById('text-left').value;
+  var rawRight = document.getElementById('text-right').value;
+  if (!rawLeft.trim() && !rawRight.trim()) { showToast('⚠️ 请先输入内容'); return; }
+  var cleanLeft = cleanText(rawLeft);
+  var cleanRight = cleanText(rawRight);
+  var diffs = diffChars(cleanLeft, cleanRight);
+  analyzeDiffs(diffs);
+  var tbody = document.getElementById('diff-tbody');
+  tbody.innerHTML = '';
+  var diffOnly = document.getElementById('opt-diff-only').checked;
+  var leftLines = rawLeft.split('\n').map(function(l){return cleanText(l);}).filter(Boolean);
+  var curDiffIdx = 0;
+  var diffLineCount = 0;
+
+  for (var idx = 0; idx < leftLines.length; idx++) {
+    var sent = leftLines[idx], sentDiffs = [], matchedLen = 0;
+    while (curDiffIdx < diffs.length && matchedLen < sent.length) {
+      var d = diffs[curDiffIdx]; sentDiffs.push(d);
+      if (d.type === 'same' || d.type === 'del') matchedLen += d.val.length;
+      curDiffIdx++;
+    }
+    while (curDiffIdx < diffs.length && diffs[curDiffIdx].type === 'add') { sentDiffs.push(diffs[curDiffIdx]); curDiffIdx++; }
+    var hasDiff = sentDiffs.some(function(d){return d.type !== 'same' && !d.equivalent;});
+    if (hasDiff) diffLineCount++;
+    if (diffOnly && !hasDiff) continue;
+    var rightHtml = '';
+    for (var k = 0; k < sentDiffs.length; k++) {
+      var p = sentDiffs[k];
+      if (p.type === 'same') rightHtml += '<span>' + escapeHtml(p.val) + '</span>';
+      else if (p.equivalent && p.type === 'del') continue;
+      else if (p.equivalent) rightHtml += '<span class="equivalent-char" title="严格同音，按口播一致处理：' + escapeHtml(p.pairVal || '') + ' ≈ ' + escapeHtml(p.val) + '">' + escapeHtml(p.val) + '</span>';
+      else if (p.homophone && p.type === 'del') continue;
+      else if (p.homophone) rightHtml += '<span class="homophone-char" title="同音疑似：' + escapeHtml(p.pairVal) + ' → ' + escapeHtml(p.val) + '">' + escapeHtml(p.val) + '</span>';
+      else if (p.type === 'add') rightHtml += '<span class="add-char">' + escapeHtml(p.val) + '</span>';
+      else if (p.type === 'del') rightHtml += '<span class="del-char">' + escapeHtml(p.val) + '</span>';
+    }
+    var cueInfo = findCueInfo(sentDiffs, diffs, curDiffIdx, idx);
+    var tr = document.createElement('tr');
+    tr.className = hasDiff ? 'diff-row' : 'same-row';
+    if (cueInfo && cueInfo.start !== null && cueInfo.start !== undefined) {
+      tr.setAttribute('data-cue-start', cueInfo.start);
+      tr.setAttribute('data-cue-end', cueInfo.end);
+      tr.setAttribute('data-is-diff', hasDiff ? 'true' : 'false');
+      tr.title = '💡 点击定位播放 (当前句播放中时，再次点击直接暂停/继续)';
+      tr.onclick = function(e) {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        var startSec = parseFloat(this.getAttribute('data-cue-start'));
+        if (!isNaN(startSec) && document.getElementById('opt-click-seek').checked) {
+          if (this === mediaState.currentPlayingRow && hasLoadedMedia()) {
+            togglePlayMedia();
+          } else {
+            seekAndPlayMedia(startSec);
+          }
+        }
+      };
+    }
+    tr.innerHTML = '<td class="line-num">' + (idx+1) + '</td><td>' + escapeHtml(sent) + '</td><td class="result-cell">' + rightHtml + timecodeButtonHtml(cueInfo) + rowActionsHtml(cueInfo) + '</td>';
+    tbody.appendChild(tr);
+  }
+  if (curDiffIdx < diffs.length) {
+    var extraAdd = '', extraDiffs = [];
+    while (curDiffIdx < diffs.length) {
+      if (diffs[curDiffIdx].type === 'add') {
+        extraDiffs.push(diffs[curDiffIdx]);
+        extraAdd += '<span class="add-char">' + escapeHtml(diffs[curDiffIdx].val) + '</span>';
+      }
+      curDiffIdx++;
+    }
+    if (extraAdd) {
+      var extraCueInfo = findCueInfo(extraDiffs, diffs, curDiffIdx, leftLines.length);
+      var trE = document.createElement('tr'); trE.className = 'diff-row';
+      if (extraCueInfo && extraCueInfo.start !== null && extraCueInfo.start !== undefined) {
+        trE.setAttribute('data-cue-start', extraCueInfo.start);
+        trE.setAttribute('data-cue-end', extraCueInfo.end);
+        trE.setAttribute('data-is-diff', 'true');
+        trE.title = '💡 点击定位播放 (当前句播放中时，再次点击直接暂停/继续)';
+        trE.onclick = function(e) {
+          if (e.target.closest('button') || e.target.closest('input')) return;
+          var startSec = parseFloat(this.getAttribute('data-cue-start'));
+          if (!isNaN(startSec) && document.getElementById('opt-click-seek').checked) {
+            if (this === mediaState.currentPlayingRow && hasLoadedMedia()) {
+              togglePlayMedia();
+            } else {
+              seekAndPlayMedia(startSec);
+            }
+          }
+        };
+      }
+      trE.innerHTML = '<td class="line-num">+</td><td style="color:var(--text-muted);">(底稿无对应内容)</td><td class="result-cell">' + extraAdd + timecodeButtonHtml(extraCueInfo) + rowActionsHtml(extraCueInfo) + '</td>';
+      tbody.appendChild(trE); diffLineCount++;
+    }
+  }
+  if (tbody.children.length === 0) {
+    var hasCueData = getCueRanges('left').length || getCueRanges('right').length;
+    var emptyMessage = diffOnly
+      ? '🎉 比对完成，所有句子内容完全一致！' + (hasCueData ? '<br><small>已保留时间码；取消勾选“仅看差异行”即可在每行查看。</small>' : '')
+      : '暂无内容';
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-tip">' + emptyMessage + '</td></tr>';
+  }
+  calcAndShowStats(diffs, diffLineCount);
+  refreshDiffNavigation();
+  buildDiffSegments();
+  saveHistory(rawLeft, rawRight);
+}
+
+// ===== History (sessionStorage：关闭标签页后自动清除) =====
+var HISTORY_KEY = 'diff-tool-history';
+var MAX_HISTORY = 20;
+
+function getHistory() {
+  try { return JSON.parse(sessionStorage.getItem(HISTORY_KEY)) || []; } catch(e) { return []; }
+}
+
+function saveHistory(left, right) {
+  if (!left.trim() && !right.trim()) return;
+  var list = getHistory();
+  var now = new Date();
+  var entry = {
+    time: now.toISOString(),
+    leftPreview: left.substring(0, 40).replace(/\n/g, ' '),
+    rightPreview: right.substring(0, 40).replace(/\n/g, ' '),
+    left: left, right: right,
+    accuracy: lastStats ? lastStats.accuracy.toFixed(1) : '—',
+    options: {
+      digits: document.getElementById('opt-digits').checked,
+      punct: document.getElementById('opt-punct').checked,
+      diffOnly: document.getElementById('opt-diff-only').checked,
+      equivalence: document.getElementById('opt-equivalence').checked,
+      custom: document.getElementById('opt-custom').value
+    }
+  };
+  // Dedup: remove if same content as most recent
+  if (list.length > 0 && list[0].left === left && list[0].right === right) list.shift();
+  list.unshift(entry);
+  if (list.length > MAX_HISTORY) list = list.slice(0, MAX_HISTORY);
+  try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch(e) {}
+  renderHistory();
+}
+
+function renderHistory() {
+  var list = getHistory();
+  var countEl = document.getElementById('history-count');
+  var listEl = document.getElementById('history-list');
+  countEl.textContent = list.length;
+  if (list.length === 0) {
+    listEl.innerHTML = '<div class="history-empty">暂无历史记录</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < list.length; i++) {
+    var e = list[i];
+    var d = new Date(e.time);
+    var timeStr = (d.getMonth()+1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    var accuracyNumber = Number.parseFloat(e.accuracy);
+    var safeAccuracy = Number.isFinite(accuracyNumber) ? boundedNumber(accuracyNumber, 0, 100).toFixed(1) : '—';
+    html += '<div class="history-item">' +
+      '<span class="history-time">' + timeStr + '</span>' +
+      '<span class="history-acc" style="color:' + (accuracyNumber >= 95 ? 'var(--add-tag-text)' : accuracyNumber >= 80 ? 'var(--accent)' : 'var(--del-tag-text)') + '">' + safeAccuracy + (safeAccuracy === '—' ? '' : '%') + '</span>' +
+      '<span class="history-preview">' + escapeHtml(e.leftPreview) + ' ↔ ' + escapeHtml(e.rightPreview) + '</span>' +
+      '<span class="history-actions">' +
+      '<button onclick="restoreHistory(' + i + ')" title="恢复">🔄</button>' +
+      '<button onclick="deleteHistory(' + i + ')" title="删除">✕</button>' +
+      '</span></div>';
+  }
+  html += '<div class="history-clear-wrap"><button class="history-clear-btn" onclick="clearHistory()">🗑️ 清空所有历史</button></div>';
+  listEl.innerHTML = html;
+}
+
+function toggleHistory() {
+  var body = document.getElementById('history-body');
+  var arrow = document.getElementById('history-arrow');
+  if (body.style.display === 'none') { body.style.display = 'block'; arrow.classList.add('open'); }
+  else { body.style.display = 'none'; arrow.classList.remove('open'); }
+}
+
+function restoreHistory(idx) {
+  var list = getHistory();
+  if (!list[idx]) return;
+  var e = list[idx];
+  document.getElementById('text-left').value = e.left;
+  document.getElementById('text-right').value = e.right;
+  subtitleCueData.left = null;
+  subtitleCueData.right = null;
+  if (e.options) {
+    document.getElementById('opt-digits').checked = e.options.digits;
+    document.getElementById('opt-punct').checked = e.options.punct;
+    document.getElementById('opt-diff-only').checked = e.options.diffOnly;
+    document.getElementById('opt-equivalence').checked = e.options.equivalence !== false;
+    document.getElementById('opt-custom').value = e.options.custom || '';
+  }
+  runCompare();
+  onTextInput();
+  showToast('✅ 已恢复历史记录');
+}
+
+function deleteHistory(idx) {
+  var list = getHistory();
+  list.splice(idx, 1);
+  try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch(e) {}
+  renderHistory();
+}
+
+function clearHistory() {
+  if (!confirm('确定要清空所有历史记录吗？')) return;
+  try { sessionStorage.removeItem(HISTORY_KEY); } catch(e) {}
+  renderHistory();
+  showToast('已清空历史记录');
+}
+
+// ===== Export HTML Report =====
+function exportHtmlReport() {
+  var tbody = document.getElementById('diff-tbody');
+  if (!tbody.innerHTML || tbody.querySelector('.empty-tip')) { showToast('⚠️ 请先执行对比后再导出'); return; }
+  var now = new Date();
+  var ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  var leftText = document.getElementById('text-left').value.trim();
+  var rightText = document.getElementById('text-right').value.trim();
+  var leftPure = getPureCharCount(leftText);
+  var rightPure = getPureCharCount(rightText);
+  var diffCount = tbody.querySelectorAll('tr.diff-row').length;
+  var totalCount = tbody.querySelectorAll('tr').length;
+  var statsHtml = '';
+  if (lastStats) {
+    statsHtml = '<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;padding:8px 16px;border-radius:6px;text-align:center;"><div style="font-size:20px;font-weight:700;color:#2563eb;">' + lastStats.accuracy.toFixed(1) + '%</div><div style="font-size:11px;color:#64748b;">准确率</div></div>' +
+      '<div style="background:#f5f3ff;border:1px solid #ddd6fe;padding:8px 16px;border-radius:6px;text-align:center;"><div style="font-size:20px;font-weight:700;color:#7c3aed;">' + lastStats.subCount + '</div><div style="font-size:11px;color:#64748b;">错录' + (lastStats.homophoneCount ? '（' + lastStats.homophoneCount + '疑似同音）' : '') + (lastStats.equivalentCount ? '·' + lastStats.equivalentCount + '严格同音已忽略' : '') + '</div></div>' +
+      '<div style="background:#fef2f2;border:1px solid #fecaca;padding:8px 16px;border-radius:6px;text-align:center;"><div style="font-size:20px;font-weight:700;color:#dc2626;">' + lastStats.delCount + '</div><div style="font-size:11px;color:#64748b;">漏字</div></div>' +
+      '<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:8px 16px;border-radius:6px;text-align:center;"><div style="font-size:20px;font-weight:700;color:#16a34a;">' + lastStats.addCount + '</div><div style="font-size:11px;color:#64748b;">多字</div></div>' +
+      '<div style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px 16px;border-radius:6px;text-align:center;"><div style="font-size:20px;font-weight:700;color:#334155;">' + rightPure + '</div><div style="font-size:11px;color:#64748b;">待核对纯字数</div></div>' +
+      '<div style="background:#f8fafc;border:1px solid #e2e8f0;padding:8px 16px;border-radius:6px;text-align:center;"><div style="font-size:20px;font-weight:700;color:#334155;">' + leftPure + '</div><div style="font-size:11px;color:#64748b;">底稿纯字数</div></div>' +
+      '</div>';
+  }
+  var speedReportHtml = '';
+  if (lastSpeedInfo) {
+    speedReportHtml = '<div style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px 14px;border-radius:6px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">' +
+      '<div><strong style="color:#0f172a;font-size:13px;">🎙️ 整体口播密度 (' + lastSpeedInfo.source + '): </strong>' +
+      '<span style="font-size:13px;color:#475569;">' + lastSpeedInfo.charCount + ' 纯字数 ÷ ' + lastSpeedInfo.durationStr + ' = </span>' +
+      '<strong style="font-size:16px;color:#2563eb;">' + lastSpeedInfo.wpm + ' 字/分钟</strong></div>' +
+      '<span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:' + (lastSpeedInfo.rating.level==='opt'?'#dcfce7':lastSpeedInfo.rating.level==='good'?'#ecfdf5':lastSpeedInfo.rating.level==='fast'?'#fef3c7':lastSpeedInfo.rating.level==='slow'?'#e0f2fe':'#fee2e2') + ';color:' + (lastSpeedInfo.rating.level==='opt'?'#15803d':lastSpeedInfo.rating.level==='good'?'#047857':lastSpeedInfo.rating.level==='fast'?'#b45309':lastSpeedInfo.rating.level==='slow'?'#0369a1':'#b91c1c') + ';">' + lastSpeedInfo.rating.label + ' · ' + lastSpeedInfo.rating.title + '</span>' +
+      '</div>';
+  }
+  var reportTable = document.querySelector('.diff-table').cloneNode(true);
+  reportTable.querySelectorAll('.row-actions').forEach(function(el){ el.remove(); });
+  reportTable.querySelectorAll('.timecode-btn').forEach(function(btn) {
+    var span = document.createElement('span');
+    span.className = 'timecode-export';
+    span.textContent = btn.textContent;
+    span.title = btn.getAttribute('data-timecode') || '';
+    btn.replaceWith(span);
+  });
+  var tableHtml = reportTable.outerHTML;
+  var html = '<!DOCTYPE html>\n<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>对比报告 - ' + ts + '</title>' +
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;background:#f1f5f9;color:#1e293b;padding:24px}.rpt{max-width:1200px;margin:0 auto;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.06);padding:28px}.rpt h1{font-size:20px;margin-bottom:8px}.meta{font-size:13px;color:#64748b;margin-bottom:16px}.meta span{display:inline-block;background:#f1f5f9;padding:2px 10px;border-radius:4px;margin-right:8px}.legend{display:flex;gap:16px;font-size:13px;margin-bottom:12px;padding:10px 14px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0}' +
+    '.tag-del{background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:3px;font-weight:600}.tag-add{background:#dcfce7;color:#16a34a;padding:2px 6px;border-radius:3px;font-weight:600}' +
+    '.diff-table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.6;border:1px solid #e2e8f0}.diff-table th{background:#f8fafc;padding:8px 12px;text-align:left;border-bottom:1px solid #e2e8f0;font-weight:600}.diff-table td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:top}.diff-table tr.diff-row{background:#fffbeb}.diff-table tr.same-row{background:#fff;color:#64748b}.line-num{width:40px;text-align:center;color:#94a3b8;background:#f8fafc;border-right:1px solid #e2e8f0;font-size:12px}.del-char{background:#fecaca;color:#991b1b;text-decoration:line-through;padding:1px 3px;margin:0 1px;border-radius:2px;font-weight:600}.add-char{background:#bbf7d0;color:#166534;padding:1px 3px;margin:0 1px;border-radius:2px;font-weight:600}.homophone-char{background:#ede9fe;color:#6d28d9;padding:1px 3px;margin:0 1px;border-radius:2px;font-weight:700;border-bottom:1px dashed #8b5cf6}.equivalent-char{color:#64748b;border-bottom:1px dotted #64748b;padding:1px 2px}.result-cell{position:relative;padding-right:122px!important}.timecode-export{position:absolute;right:8px;top:7px;color:#64748b;border:1px solid #cbd5e1;border-radius:12px;padding:1px 7px;font-size:10px}' +
+    '.src{margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0}.src summary{font-size:14px;font-weight:600;color:#475569;cursor:pointer;padding:6px 0}.src pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;font-size:13px;white-space:pre-wrap;word-break:break-all;line-height:1.6;margin-top:8px}.sl{font-size:12px;font-weight:600;color:#64748b;margin-top:10px;margin-bottom:4px}.ft{margin-top:20px;text-align:center;font-size:12px;color:#94a3b8}' +
+    '@media print{body{background:#fff;padding:0}.rpt{box-shadow:none}.del-char{background:#fee2e2!important;color:#dc2626!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.add-char{background:#dcfce7!important;color:#16a34a!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.diff-table tr.diff-row{background:#fefce8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head>\n' +
+    '<body><div class="rpt"><h1>📋 文本差异对比报告</h1><div class="meta"><span>📅 ' + ts + '</span><span>📊 共 ' + totalCount + ' 行，' + diffCount + ' 行有差异</span></div>' +
+    statsHtml +
+    speedReportHtml +
+    '<div class="legend"><span><span class="tag-del">红色删除线</span> = 底稿有而漏了</span><span><span class="tag-add">绿色背景</span> = 比对文本多出的字</span><span><span class="homophone-char">紫色</span> = 未确认同音疑似</span><span><span class="equivalent-char">灰色</span> = 严格同音（不计错）</span></div>' +
+    tableHtml +
+    '<div class="src"><details><summary>📎 查看原始文本</summary><div class="sl">底稿 / 原文 (纯字数 ' + leftPure + ' 字)：</div><pre>' + escapeHtml(leftText) + '</pre><div class="sl">比对文本 (纯字数 ' + rightPure + ' 字)：</div><pre>' + escapeHtml(rightText) + '</pre></details></div>' +
+    '<div class="ft">由「文本差异比对与校对工具」生成</div></div></body></html>';
+  var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '对比报告_' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '_' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + '.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  showToast('✅ HTML 报告已下载');
+}
+
+// ===== Copy Rich Text =====
+function copyRichText() {
+  var tbody = document.getElementById('diff-tbody');
+  if (!tbody.innerHTML || tbody.querySelector('.empty-tip')) { showToast('⚠️ 请先执行对比后再复制'); return; }
+  var tableEl = document.querySelector('.diff-table');
+  var leftPure = getPureCharCount(document.getElementById('text-left').value);
+  var rightPure = getPureCharCount(document.getElementById('text-right').value);
+  var statsText = lastStats ? '口播内容一致率 ' + lastStats.accuracy.toFixed(1) + '% | 错录 ' + lastStats.subCount + ' 字' + (lastStats.homophoneCount ? '(其中未确认同音疑似 ' + lastStats.homophoneCount + ')' : '') + (lastStats.equivalentCount ? ' | 严格同音已忽略 ' + lastStats.equivalentCount + ' 处' : '') + ' | 漏字 ' + lastStats.delCount + ' 字 | 多字 ' + lastStats.addCount + ' 字 | 待核对纯字数: ' + rightPure + ' 字 | 底稿纯字数: ' + leftPure + ' 字\n' : '';
+  var speedText = lastSpeedInfo ? '🎙️ 整体口播密度: ' + lastSpeedInfo.wpm + ' 纯文字/分钟 [' + lastSpeedInfo.rating.label + ' · ' + lastSpeedInfo.rating.title + '] (' + lastSpeedInfo.charCount + ' 纯字数 ÷ ' + lastSpeedInfo.durationStr + ')\n' : '';
+
+  var htmlSpeedBox = lastSpeedInfo ? '<p style="margin-bottom:6px;font-size:12px;color:#0369a1;background:#f0f9ff;padding:6px 10px;border-radius:4px;border:1px solid #bae6fd;">🎙️ 整体口播密度: <b>' + lastSpeedInfo.wpm + ' 纯文字/分钟</b> (' + lastSpeedInfo.rating.label + ' · ' + lastSpeedInfo.rating.title + ') — 纯字数 ' + lastSpeedInfo.charCount + ' 字，完整时长 ' + lastSpeedInfo.durationStr + '</p>' : '';
+  var copyTable = tableEl.cloneNode(true);
+  copyTable.querySelectorAll('.del-char').forEach(function(el){ el.style.cssText = 'background:#fee2e2;color:#dc2626;text-decoration:line-through;padding:1px 3px;'; });
+  copyTable.querySelectorAll('.add-char').forEach(function(el){ el.style.cssText = 'background:#dcfce7;color:#166534;padding:1px 3px;'; });
+  copyTable.querySelectorAll('.homophone-char').forEach(function(el){ el.style.cssText = 'background:#ede9fe;color:#6d28d9;padding:1px 3px;font-weight:700;'; });
+  copyTable.querySelectorAll('.equivalent-char').forEach(function(el){ el.style.cssText = 'color:#64748b;border-bottom:1px dotted #64748b;padding:1px 2px;'; });
+  copyTable.querySelectorAll('.timecode-btn').forEach(function(btn){
+    var span = document.createElement('span');
+    span.textContent = ' [' + (btn.getAttribute('data-timecode') || btn.textContent.trim()) + ']';
+    span.style.cssText = 'color:#64748b;font-size:11px;white-space:nowrap;';
+    btn.replaceWith(span);
+  });
+  var htmlContent = '<div style="font-family:sans-serif;font-size:13px;">' +
+    '<p style="margin-bottom:8px;font-size:14px;font-weight:bold;">📋 文本差异对比结果</p>' +
+    htmlSpeedBox +
+    (lastStats ? '<p style="margin-bottom:6px;font-size:13px;">📊 口播内容一致率 <b>' + lastStats.accuracy.toFixed(1) + '%</b> | 错录 <b style="color:#7c3aed;">' + lastStats.subCount + '</b> 字 | 漏字 <b style="color:#dc2626;">' + lastStats.delCount + '</b> 字 | 多字 <b style="color:#16a34a;">' + lastStats.addCount + '</b> 字 | 纯字数 <b>' + rightPure + '</b> 字</p>' : '') +
+    '<p style="margin-bottom:10px;font-size:12px;color:#64748b;">' +
+    '<span style="background:#fee2e2;color:#dc2626;padding:1px 5px;border-radius:3px;font-weight:600;">红色删除线</span> = 漏了 &nbsp; ' +
+    '<span style="background:#dcfce7;color:#16a34a;padding:1px 5px;border-radius:3px;font-weight:600;">绿色背景</span> = 多出的字 &nbsp; ' +
+    '<span style="background:#ede9fe;color:#6d28d9;padding:1px 5px;border-radius:3px;font-weight:600;">紫色标记</span> = 同音疑似' +
+    '</p>' + copyTable.outerHTML + '</div>';
+  var plainRows = [speedText + statsText + '文本差异对比结果', '='.repeat(40)];
+  var rows = tbody.querySelectorAll('tr');
+  for (var i = 0; i < rows.length; i++) {
+    var cells = rows[i].querySelectorAll('td');
+    if (cells.length >= 3) plainRows.push('第' + cells[0].textContent.trim() + '行 | 原文: ' + cells[1].textContent.trim() + ' | 对比: ' + cells[2].textContent.trim());
+  }
+  if (navigator.clipboard && window.ClipboardItem) {
+    navigator.clipboard.write([new ClipboardItem({'text/html': new Blob([htmlContent],{type:'text/html'}), 'text/plain': new Blob([plainRows.join('\n')],{type:'text/plain'})})]).then(function(){showToast('✅ 已复制！可粘贴到邮件、Word、微信等');}).catch(function(){fallbackCopy(plainRows.join('\n'));});
+  } else { fallbackCopy(plainRows.join('\n')); }
+}
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  showToast('✅ 已复制纯文本结果');
+}
+
+// ===== Clear All =====
+function clearAll() {
+  document.getElementById('text-left').value = '';
+  document.getElementById('text-right').value = '';
+  document.getElementById('opt-custom').value = '';
+  document.getElementById('diff-tbody').innerHTML = '<tr><td colspan="3" class="empty-tip">请在上方粘贴内容后点击"立即对比"</td></tr>';
+  document.getElementById('stats-dashboard').style.display = 'none';
+  document.getElementById('file-info-left').textContent = '';
+  document.getElementById('file-info-right').textContent = '';
+  document.getElementById('speed-detected-tag').style.display = 'none';
+  detectedDurationSeconds = 0;
+  closeMedia();
+  subtitleCueData.left = null;
+  subtitleCueData.right = null;
+  lastStats = null;
+  refreshDiffNavigation();
+  onTextInput();
+  showToast('已清空');
+}
+
+// ===== Media Player & Audio/Video Sync Engine (v5) =====
+var mediaState = {
+  element: null,
+  blobUrl: null,
+  loaded: false,
+  isSeeking: false,
+  currentPlayingRow: null,
+  diffSegments: [],        // [{ start, end, row, diffListIndex, text }]
+  lastLoopTriggerTime: 0
+};
+
+function hasLoadedMedia() {
+  return mediaState.loaded && mediaState.element && !isNaN(mediaState.element.duration) && mediaState.element.duration > 0;
+}
+
+function handleMediaFile(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  loadMediaFile(file);
+  event.target.value = '';
+}
+
+function loadMediaFile(file) {
+  if (!mediaState.element) {
+    mediaState.element = document.getElementById('media-player');
+  }
+  if (mediaState.blobUrl) {
+    try { URL.revokeObjectURL(mediaState.blobUrl); } catch(e) {}
+  }
+
+  mediaState.blobUrl = URL.createObjectURL(file);
+  mediaState.element.src = mediaState.blobUrl;
+  mediaState.loaded = true;
+
+  var isVideo = file.type.indexOf('video') !== -1 || /\.(mp4|webm|ogg|mov)$/i.test(file.name);
+  var wrap = document.getElementById('media-video-wrap');
+  var placeholder = document.getElementById('media-placeholder');
+  
+  if (isVideo) {
+    placeholder.style.display = 'none';
+    mediaState.element.style.display = 'block';
+  } else {
+    // 纯音频模式
+    placeholder.style.display = 'flex';
+    placeholder.innerHTML = '<div style="font-size:32px;">🎵</div><div style="font-weight:600;color:var(--text-primary);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(file.name) + '</div><div style="font-size:11px;color:var(--text-muted);">本地音频播放模式</div>';
+    mediaState.element.style.display = 'none';
+  }
+
+  var sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+  var badge = document.getElementById('media-status-badge');
+  badge.textContent = (isVideo ? '🎬 视频: ' : '🎵 音频: ') + file.name + ' (' + sizeMb + ' MB)';
+  badge.style.background = 'rgba(16, 185, 129, 0.15)';
+  badge.style.color = '#059669';
+
+  mediaState.element.onloadedmetadata = function() {
+    var dur = mediaState.element.duration || 0;
+    var durFormatted = formatCueTime(dur, false);
+    document.getElementById('media-time-dur').textContent = durFormatted;
+    document.getElementById('media-seek-bar').max = dur;
+    document.getElementById('media-seek-bar').value = 0;
+
+    // 自动将精准媒体时长同步给上方口播密度计算器
+    var dm = Math.floor(dur / 60);
+    var ds = Math.round(dur % 60);
+    document.getElementById('speed-min').value = dm;
+    document.getElementById('speed-sec').value = ds;
+    updateSpeedCalc();
+
+    showToast('✅ 媒体加载成功！时长 ' + durFormatted + '，已自动填入口播测算');
+    buildDiffSegments();
+  };
+
+  mediaState.element.onplay = function() {
+    var btn = document.getElementById('btn-media-play');
+    if (btn) btn.textContent = '⏸';
+    var fmbBtn = document.getElementById('fmb-play-btn');
+    if (fmbBtn) fmbBtn.textContent = '⏸';
+    var copyBtn = document.getElementById('fmb-btn-copy-tc');
+    if (copyBtn) copyBtn.classList.remove('paused-glow');
+    showPlaybackHud(false);
+  };
+
+  mediaState.element.onpause = function() {
+    var btn = document.getElementById('btn-media-play');
+    if (btn) btn.textContent = '▶';
+    var fmbBtn = document.getElementById('fmb-play-btn');
+    if (fmbBtn) fmbBtn.textContent = '▶';
+    var copyBtn = document.getElementById('fmb-btn-copy-tc');
+    if (copyBtn) {
+      copyBtn.classList.add('paused-glow');
+      var tcSpan = document.getElementById('fmb-cur-tc');
+      if (tcSpan) tcSpan.textContent = getCurrentTimecodeString();
+    }
+    showPlaybackHud(true);
+  };
+
+  mediaState.element.ontimeupdate = onMediaTimeUpdate;
+}
+
+function closeMedia() {
+  if (mediaState.element) {
+    mediaState.element.pause();
+    mediaState.element.removeAttribute('src');
+    mediaState.element.load();
+  }
+  if (mediaState.blobUrl) {
+    try { URL.revokeObjectURL(mediaState.blobUrl); } catch(e) {}
+    mediaState.blobUrl = null;
+  }
+  mediaState.loaded = false;
+  mediaState.currentPlayingRow = null;
+  document.querySelectorAll('.diff-table tr.playing-row').forEach(function(r){ r.classList.remove('playing-row'); });
+
+  var badge = document.getElementById('media-status-badge');
+  if (badge) {
+    badge.textContent = '未加载媒体';
+    badge.style.background = 'rgba(37,99,235,0.1)';
+    badge.style.color = 'var(--accent)';
+  }
+
+  var placeholder = document.getElementById('media-placeholder');
+  if (placeholder) {
+    placeholder.style.display = 'flex';
+    placeholder.innerHTML = '<div style="font-size:28px;">🎵 / 🎬</div><div>点击右上角选择本地 MP4 / MP3 等文件</div><div style="font-size:11px;opacity:0.7;">支持直接拖拽音视频至此</div>';
+  }
+
+  var curTimeEl = document.getElementById('media-time-cur');
+  if (curTimeEl) curTimeEl.textContent = '00:00';
+  var durTimeEl = document.getElementById('media-time-dur');
+  if (durTimeEl) durTimeEl.textContent = '00:00';
+  var seekBar = document.getElementById('media-seek-bar');
+  if (seekBar) seekBar.value = 0;
+  var nowPlayInfo = document.getElementById('now-playing-info');
+  if (nowPlayInfo) nowPlayInfo.innerHTML = '<span>等待播放</span>';
+  var loopPill = document.getElementById('loop-status-pill');
+  if (loopPill) loopPill.style.display = 'none';
+}
+
+function togglePlayMedia() {
+  if (!hasLoadedMedia()) {
+    showToast('💡 请先点击右上角「加载本地音/视频」');
+    return;
+  }
+  if (mediaState.element.paused) {
+    mediaState.element.play();
+  } else {
+    mediaState.element.pause();
+  }
+}
+
+function skipMediaTime(delta) {
+  if (!hasLoadedMedia()) return;
+  mediaState.element.currentTime = Math.max(0, Math.min(mediaState.element.duration, mediaState.element.currentTime + delta));
+}
+
+function onMediaSeek(val) {
+  if (!hasLoadedMedia()) return;
+  mediaState.element.currentTime = parseFloat(val);
+}
+
+function changeMediaRate(rate) {
+  if (!mediaState.element) return;
+  mediaState.element.playbackRate = parseFloat(rate);
+  showToast('播放倍速: ' + rate + 'x');
+}
+
+function changeMediaVolume(val) {
+  if (!mediaState.element) return;
+  mediaState.element.volume = parseFloat(val);
+}
+
+function toggleMediaSticky() {
+  var panel = document.getElementById('media-panel');
+  var isSticky = panel.classList.toggle('sticky-mode');
+  var btn = document.getElementById('btn-toggle-sticky');
+  btn.textContent = isSticky ? '📌 取消吸顶' : '📌 吸顶固定';
+  btn.style.color = isSticky ? 'var(--accent)' : 'inherit';
+  showToast(isSticky ? '📌 播放器已吸顶固定在页面顶部' : '已取消吸顶模式');
+}
+
+function toggleVideoVisibility() {
+  var wrap = document.getElementById('media-video-wrap');
+  var btn = document.getElementById('btn-toggle-video-view');
+  if (wrap.style.display === 'none') {
+    wrap.style.display = 'flex';
+    btn.textContent = '📺 隐藏画面';
+  } else {
+    wrap.style.display = 'none';
+    btn.textContent = '📺 显示画面';
+  }
+}
+
+function seekAndPlayMedia(timeSec) {
+  if (!hasLoadedMedia()) {
+    showToast('💡 请先在上方加载本地音视频，即可实现点击即播');
+    return;
+  }
+  timeSec = Math.max(0, Number(timeSec) || 0);
+  mediaState.element.currentTime = timeSec;
+  if (mediaState.element.paused) {
+    mediaState.element.play().catch(function(){});
+  }
+}
+
+// 帧时间码换算与当前播放位置时间码获取 (支持 25fps)
+function formatFrameTimecode(sec, fps) {
+  fps = fps || 25;
+  sec = Math.max(0, Number(sec) || 0);
+  var h = Math.floor(sec / 3600);
+  var m = Math.floor((sec % 3600) / 60);
+  var s = Math.floor(sec % 60);
+  var f = Math.floor((sec - Math.floor(sec)) * fps);
+  return String(h).padStart(2, '0') + ':' +
+         String(m).padStart(2, '0') + ':' +
+         String(s).padStart(2, '0') + ':' +
+         String(f).padStart(2, '0');
+}
+
+function getCurrentTimecodeString() {
+  if (!mediaState.element) return '00:00:00:00';
+  if (mediaState.currentPlayingRow) {
+    var timeBtn = mediaState.currentPlayingRow.querySelector('.timecode-btn');
+    if (timeBtn) {
+      var tc = timeBtn.getAttribute('data-timecode') || '';
+      var clean = tc.split(/\s*(?:-->|->|~)\s*/)[0].trim().replace(/^[\[\s]+/, '').replace(/[\]\s]+$/, '');
+      if (clean) return clean;
+    }
+  }
+  return formatFrameTimecode(mediaState.element.currentTime || 0, 25);
+}
+
+function copyCurrentPlaybackTimecode() {
+  if (!hasLoadedMedia()) {
+    showToast('💡 请先加载音视频');
+    return;
+  }
+  var tc = getCurrentTimecodeString();
+  copyTimecodeText(tc);
+}
+
+// 缓存解析结果中的全部差异时间段与字幕时间段
+function buildDiffSegments() {
+  var rows = Array.from(document.querySelectorAll('#diff-tbody tr[data-cue-start]'));
+  var diffList = [];
+  rows.forEach(function(r) {
+    var isDiff = r.getAttribute('data-is-diff') === 'true';
+    var start = parseFloat(r.getAttribute('data-cue-start'));
+    var end = parseFloat(r.getAttribute('data-cue-end'));
+    if (!isNaN(start)) {
+      if (isNaN(end) || end <= start) end = start + 2; // 容错保底2秒
+      if (isDiff) {
+        var textCell = r.cells[1] ? r.cells[1].textContent.trim() : '';
+        diffList.push({
+          start: start,
+          end: end,
+          row: r,
+          diffListIndex: diffList.length,
+          text: textCell
+        });
+      }
+    }
+  });
+  mediaState.diffSegments = diffList;
+
+  // 更新播放面板联动状态
+  var infoEl = document.getElementById('now-playing-info');
+  if (infoEl) {
+    if (rows.length > 0) {
+      infoEl.innerHTML = '<span style="color:#059669;font-weight:600;">⏱ 已成功联动 ' + rows.length + ' 句字幕时间码</span>';
+    } else {
+      infoEl.innerHTML = '<span style="color:#d97706;">⚠️ 未关联到时间码（粘贴时请包含 [00:00:00:00 --> 00:00:08:24] 并点击立即对比）</span>';
+    }
+  }
+}
+
+function onDiffLoopToggle() {
+  var enabled = document.getElementById('opt-diff-loop').checked;
+  var pill = document.getElementById('loop-status-pill');
+  if (enabled) {
+    pill.style.display = 'inline-flex';
+    showToast('🔁 已开启差异处自动循环');
+    if (hasLoadedMedia() && mediaState.diffSegments.length > 0) {
+      var cur = mediaState.element.currentTime;
+      var inDiff = mediaState.diffSegments.some(function(s){ return cur >= s.start && cur < s.end; });
+      if (!inDiff) {
+        seekAndPlayMedia(mediaState.diffSegments[0].start);
+      }
+    }
+  } else {
+    pill.style.display = 'none';
+    showToast('已关闭差异循环');
+  }
+}
+
+function onDiffLoopModeChange() {
+  var mode = document.getElementById('opt-diff-loop-mode').value;
+  showToast(mode === 'single' ? '🔁 循环模式：当前单处差异反复循环' : '🔁 巡检模式：播完跳至下一个差异');
+}
+
+// 核心同步逻辑：高亮跳行与差异循环控制
+function onMediaTimeUpdate() {
+  if (!mediaState.loaded || !mediaState.element) return;
+  var curTime = mediaState.element.currentTime;
+
+  // 1. 更新进度条与当前时间
+  document.getElementById('media-time-cur').textContent = formatCueTime(curTime, false);
+  var bar = document.getElementById('media-seek-bar');
+  if (!mediaState.isSeeking) {
+    bar.value = curTime;
+  }
+  var curTcSpan = document.getElementById('fmb-cur-tc');
+  if (curTcSpan) {
+    curTcSpan.textContent = getCurrentTimecodeString();
+  }
+
+  // 2. 差异处自动循环处理 (Diff Loop Engine)
+  var isDiffLoop = document.getElementById('opt-diff-loop').checked;
+  var loopMode = document.getElementById('opt-diff-loop-mode').value; // 'single' 或 'tour'
+  var pill = document.getElementById('loop-status-pill');
+
+  if (isDiffLoop && mediaState.diffSegments.length > 0) {
+    var now = Date.now();
+    var curSeg = null;
+    for (var d = 0; d < mediaState.diffSegments.length; d++) {
+      var seg = mediaState.diffSegments[d];
+      if (curTime >= seg.start - 0.25 && curTime < seg.end + 0.35) {
+        curSeg = seg;
+        break;
+      }
+    }
+
+    if (curSeg) {
+      pill.style.display = 'inline-flex';
+      pill.textContent = '🔁 差异循环中 (第 ' + (curSeg.diffListIndex + 1) + '/' + mediaState.diffSegments.length + ' 处)';
+      
+      // 检测是否已达差异段结束点
+      if (curTime >= curSeg.end - 0.05 && (now - mediaState.lastLoopTriggerTime > 600)) {
+        mediaState.lastLoopTriggerTime = now;
+        if (loopMode === 'single') {
+          // 单处差异反复循环
+          mediaState.element.currentTime = curSeg.start;
+          return;
+        } else if (loopMode === 'tour') {
+          // 巡检模式：直接跳播到下一个差异
+          var nextIndex = (curSeg.diffListIndex + 1) % mediaState.diffSegments.length;
+          var nextSeg = mediaState.diffSegments[nextIndex];
+          mediaState.element.currentTime = nextSeg.start;
+          showToast('🔁 巡检跳至第 ' + (nextIndex + 1) + ' 处差异');
+          return;
+        }
+      }
+    } else {
+      pill.textContent = '🔁 差异循环就绪';
+    }
+  }
+
+  // 3. 行高亮与自动跟随滚动 (Auto Scroll & Highlight)
+  var allRows = Array.from(document.querySelectorAll('#diff-tbody tr[data-cue-start]'));
+  if (!allRows.length) {
+    var infoEl = document.getElementById('now-playing-info');
+    if (infoEl) infoEl.innerHTML = '<span style="color:#d97706;">⚠️ 对比结果中未识别到时间码，请包含时间码后点击“立即对比”</span>';
+    return;
+  }
+
+  var matchedRow = null;
+  for (var i = 0; i < allRows.length; i++) {
+    var s = parseFloat(allRows[i].getAttribute('data-cue-start'));
+    var e = parseFloat(allRows[i].getAttribute('data-cue-end'));
+    if (!isNaN(s)) {
+      var nextRow = allRows[i + 1];
+      var nextS = nextRow ? parseFloat(nextRow.getAttribute('data-cue-start')) : Infinity;
+      var durEnd = (isNaN(e) || e <= s) ? (s + 2.5) : e;
+      // 容差：当前句结束后保持高亮，直到下一句开始前0.05s，或当前句结束后0.6s
+      var effectiveEnd = Math.min(nextS - 0.05, durEnd + 0.6);
+      if (curTime >= s - 0.25 && curTime < effectiveEnd) {
+        matchedRow = allRows[i];
+        break;
+      }
+    }
+  }
+
+  if (matchedRow) {
+    if (matchedRow !== mediaState.currentPlayingRow) {
+      if (mediaState.currentPlayingRow) {
+        mediaState.currentPlayingRow.classList.remove('playing-row');
+      }
+      matchedRow.classList.add('playing-row');
+      mediaState.currentPlayingRow = matchedRow;
+
+      // 更新正在播放状态文字
+      var lineNo = matchedRow.cells[0] ? matchedRow.cells[0].textContent.trim() : '';
+      var lineText = matchedRow.cells[1] ? matchedRow.cells[1].textContent.trim() : '';
+      var timeBtn = matchedRow.querySelector('.timecode-btn');
+      var timeText = timeBtn ? timeBtn.textContent.replace('▶', '').trim() : '';
+      var infoEl = document.getElementById('now-playing-info');
+      if (infoEl) {
+        infoEl.innerHTML = '🔊 <strong style="color:var(--accent);">第 ' + lineNo + ' 句:</strong> ' + escapeHtml(lineText.substring(0, 22)) + (lineText.length > 22 ? '...' : '') + ' <small style="color:var(--text-muted);">(' + timeText + ')</small>';
+      }
+      var fmbInfo = document.getElementById('fmb-now-info');
+      if (fmbInfo) {
+        fmbInfo.innerHTML = '🔊 <strong>第 ' + lineNo + ' 句</strong> [' + timeText + '] ' + escapeHtml(lineText.substring(0, 18)) + (lineText.length > 18 ? '...' : '');
+      }
+
+      // 自动跟随居中滚动
+      if (document.getElementById('opt-auto-scroll').checked) {
+        matchedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  } else {
+    if (mediaState.currentPlayingRow) {
+      var lastEnd = parseFloat(mediaState.currentPlayingRow.getAttribute('data-cue-end'));
+      if (isNaN(lastEnd) || curTime > lastEnd + 0.6 || curTime < parseFloat(mediaState.currentPlayingRow.getAttribute('data-cue-start')) - 0.3) {
+        mediaState.currentPlayingRow.classList.remove('playing-row');
+        mediaState.currentPlayingRow = null;
+        var infoEl = document.getElementById('now-playing-info');
+        if (infoEl) infoEl.innerHTML = '<span>▶ 播放中...</span>';
+        var fmbInfo = document.getElementById('fmb-now-info');
+        if (fmbInfo) fmbInfo.innerHTML = '<span>▶ 播放中...</span>';
+      }
+    }
+  }
+}
+
+// 屏幕居中 HUD 播放/暂停大图标反馈
+var hudTimer = null;
+function showPlaybackHud(isPaused) {
+  var hud = document.getElementById('playback-hud');
+  var icon = document.getElementById('hud-icon');
+  var text = document.getElementById('hud-text');
+  if (!hud || !icon || !text) return;
+  if (hudTimer) clearTimeout(hudTimer);
+  icon.textContent = isPaused ? '⏸' : '▶';
+  text.textContent = isPaused ? '已暂停' : '播放中';
+  hud.classList.add('show');
+  hudTimer = setTimeout(function() {
+    hud.classList.remove('show');
+  }, 650);
+}
+
+// 反复循环播放当前这一句
+function loopCurrentSentence() {
+  if (!hasLoadedMedia()) {
+    showToast('💡 请先加载音视频');
+    return;
+  }
+  if (!mediaState.currentPlayingRow) {
+    showToast('⚠️ 当前没有正在播放的句子');
+    return;
+  }
+  var s = parseFloat(mediaState.currentPlayingRow.getAttribute('data-cue-start'));
+  if (!isNaN(s)) {
+    seekAndPlayMedia(s);
+    document.getElementById('opt-diff-loop').checked = true;
+    document.getElementById('opt-diff-loop-mode').value = 'single';
+    onDiffLoopToggle();
+    showToast('🔁 已开启本句反复循环模式');
+  }
+}
+
+// 监听滚动：当主播控面板离开屏幕时，底部悬浮胶囊播控条自动呼出
+function updateFloatingMiniBar() {
+  var fmb = document.getElementById('floating-mini-bar');
+  var panel = document.getElementById('media-panel');
+  if (!fmb || !panel) return;
+  if (!hasLoadedMedia()) {
+    fmb.classList.remove('visible');
+    return;
+  }
+  var rect = panel.getBoundingClientRect();
+  if (rect.bottom < 60) {
+    fmb.classList.add('visible');
+  } else {
+    fmb.classList.remove('visible');
+  }
+}
+window.addEventListener('scroll', updateFloatingMiniBar, { passive: true });
+
+function setupMediaDragDrop() {
+  var wrap = document.getElementById('media-panel');
+  if (!wrap) return;
+  wrap.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    wrap.style.borderColor = 'var(--accent)';
+  });
+  wrap.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    wrap.style.borderColor = 'var(--border)';
+  });
+  wrap.addEventListener('drop', function(e) {
+    e.preventDefault();
+    wrap.style.borderColor = 'var(--border)';
+    if (e.dataTransfer.files.length > 0) {
+      loadMediaFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  var bar = document.getElementById('media-seek-bar');
+  if (bar) {
+    bar.addEventListener('mousedown', function(){ mediaState.isSeeking = true; });
+    bar.addEventListener('mouseup', function(){ mediaState.isSeeking = false; });
+    bar.addEventListener('touchstart', function(){ mediaState.isSeeking = true; });
+    bar.addEventListener('touchend', function(){ mediaState.isSeeking = false; });
+  }
+}
+
+// ===== Share Link System (冻结最终结果的纯前端只读快照) =====
+var MAX_SHARE_ENCODED_CHARS = 1600000;
+var MAX_SHARE_JSON_CHARS = 1200000;
+var MAX_SHARE_ROWS = 5000;
+var MAX_SHARE_TOKENS_PER_ROW = 20000;
+var MAX_SHARE_TEXT_CHARS = 1000000;
+var MAX_LEGACY_DIFF_CELLS = 5000000;
+var MAX_LEGACY_TOTAL_CHARS = 50000;
+
+function boundedNumber(value, min, max) {
+  var number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.max(min, Math.min(max, number));
+}
+
+function isSafeSharedResultSnapshot(data) {
+  if (!data || data.mode !== 'result-snapshot' || !Array.isArray(data.rows) || !data.stats) return false;
+  if (data.rows.length > MAX_SHARE_ROWS) return false;
+  var totalChars = 0;
+  for (var i = 0; i < data.rows.length; i++) {
+    var item = data.rows[i];
+    if (!item || !Array.isArray(item.t) || item.t.length > MAX_SHARE_TOKENS_PER_ROW) return false;
+    totalChars += String(item.n == null ? '' : item.n).length;
+    totalChars += String(item.s == null ? '' : item.s).length;
+    totalChars += String(item.tc == null ? '' : item.tc).length;
+    for (var j = 0; j < item.t.length; j++) {
+      var token = item.t[j];
+      if (!token || typeof token !== 'object') return false;
+      totalChars += String(token.x == null ? '' : token.x).length;
+      if (totalChars > MAX_SHARE_TEXT_CHARS) return false;
+    }
+  }
+  return totalChars <= MAX_SHARE_TEXT_CHARS;
+}
+
+function collectSharedResultRows() {
+  var rows = document.querySelectorAll('#diff-tbody tr');
+  var result = [];
+  rows.forEach(function(row) {
+    var cells = row.querySelectorAll('td');
+    if (cells.length < 3 || row.querySelector('.empty-tip')) return;
+    var tokens = [];
+    cells[2].childNodes.forEach(function(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        if (node.textContent) tokens.push({ k: 'same', x: node.textContent });
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE || node.matches('.timecode-btn,.row-actions')) return;
+      var kind = 'same';
+      if (node.classList.contains('del-char')) kind = 'del';
+      else if (node.classList.contains('add-char')) kind = 'add';
+      else if (node.classList.contains('homophone-char')) kind = 'homophone';
+      else if (node.classList.contains('equivalent-char')) kind = 'equivalent';
+      tokens.push({ k: kind, x: node.textContent || '' });
+    });
+    var timeBtn = row.querySelector('.timecode-btn');
+    result.push({
+      n: cells[0].textContent.trim(),
+      s: cells[1].textContent.trim(),
+      t: tokens,
+      d: row.classList.contains('diff-row') ? 1 : 0,
+      tc: timeBtn ? (timeBtn.getAttribute('data-timecode-full') || timeBtn.getAttribute('data-timecode') || '') : ''
+    });
+  });
+  return result;
+}
+
+function generateShareLink() {
+  var tbody = document.getElementById('diff-tbody');
+  if (!lastStats || !tbody) {
+    showToast('⚠️ 请先完成对比，再生成结果分享链接');
+    return;
+  }
+
+  var sharedRows = collectSharedResultRows();
+  var payload = {
+    v: 51,
+    mode: 'result-snapshot',
+    createdAt: new Date().toISOString(),
+    stats: {
+      accuracy: lastStats.accuracy,
+      subCount: lastStats.subCount,
+      delCount: lastStats.delCount,
+      addCount: lastStats.addCount,
+      homophoneCount: lastStats.homophoneCount,
+      equivalentCount: lastStats.equivalentCount,
+      diffLineCount: lastStats.diffLineCount,
+      totalChars: lastStats.totalChars
+    },
+    rows: sharedRows
+  };
+
+  try {
+    var jsonStr = JSON.stringify(payload);
+    var encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(jsonStr))));
+    var baseLoc = window.location.href.split('#')[0];
+    var shareUrl = baseLoc + '#share=' + encoded;
+    if (shareUrl.length > MAX_SHARE_ENCODED_CHARS) {
+      showToast('⚠️ 当前结果过长，超出可靠分享链接容量，请改用“导出报告”');
+      return;
+    }
+
+    var input = document.getElementById('share-link-input');
+    if (input) input.value = shareUrl;
+
+    var modal = document.getElementById('share-modal');
+    if (modal) modal.classList.add('open');
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareUrl).then(function() {
+        showToast('✅ 分享链接已生成并复制到剪贴板！');
+      }).catch(function() {});
+    }
+  } catch(e) {
+    showToast('⚠️ 生成结果分享链接失败: ' + e.message);
+  }
+}
+
+function closeShareModal(e) {
+  var modal = document.getElementById('share-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function copyShareLinkFromInput() {
+  var input = document.getElementById('share-link-input');
+  if (!input || !input.value) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(input.value).then(function() {
+      showToast('✅ 分享链接已复制到剪贴板');
+    }).catch(function() {
+      fallbackCopy(input.value);
+    });
+  } else {
+    fallbackCopy(input.value);
+  }
+}
+
+function renderSharedResultSnapshot(data) {
+  if (!isSafeSharedResultSnapshot(data)) return false;
+  document.body.classList.add('shared-result-view');
+  document.title = '只读对比结果 - 文本差异比对工具';
+  var title = document.querySelector('.header-bar h1');
+  if (title) title.innerHTML = '🔍 文本差异对比结果 <small style="font-size:10px;color:var(--accent);font-weight:600;background:rgba(37,99,235,0.1);padding:1px 6px;border-radius:4px;">只读快照</small>';
+
+  var timeEl = document.getElementById('share-snapshot-time');
+  if (timeEl && data.createdAt) {
+    var created = new Date(data.createdAt);
+    if (!isNaN(created.getTime())) timeEl.textContent = '　生成时间：' + created.toLocaleString();
+  }
+
+  var stats = data.stats;
+  lastStats = stats;
+  document.getElementById('stats-dashboard').style.display = 'grid';
+  var accuracy = boundedNumber(stats.accuracy, 0, 100);
+  var subCount = boundedNumber(stats.subCount, 0, MAX_SHARE_TEXT_CHARS);
+  var delCount = boundedNumber(stats.delCount, 0, MAX_SHARE_TEXT_CHARS);
+  var addCount = boundedNumber(stats.addCount, 0, MAX_SHARE_TEXT_CHARS);
+  var homophoneCount = boundedNumber(stats.homophoneCount, 0, MAX_SHARE_TEXT_CHARS);
+  var equivalentCount = boundedNumber(stats.equivalentCount, 0, MAX_SHARE_TEXT_CHARS);
+  document.getElementById('stat-accuracy').textContent = accuracy.toFixed(1) + '%';
+  document.getElementById('stat-sub').textContent = subCount + ' 字' + (homophoneCount ? ' · ' + homophoneCount + '疑似同音' : '') + (equivalentCount ? ' · ' + equivalentCount + '严格同音已忽略' : '');
+  document.getElementById('stat-del').textContent = delCount + ' 字';
+  document.getElementById('stat-add').textContent = addCount + ' 字';
+  document.getElementById('stat-diff-lines').textContent = boundedNumber(stats.diffLineCount, 0, MAX_SHARE_ROWS) + ' 行';
+  document.getElementById('stat-total').textContent = boundedNumber(stats.totalChars, 0, MAX_SHARE_TEXT_CHARS);
+  document.getElementById('stat-bar-fill').style.width = accuracy + '%';
+
+  var tbody = document.getElementById('diff-tbody');
+  tbody.innerHTML = '';
+  var allowedKinds = { same: '', del: 'del-char', add: 'add-char', homophone: 'homophone-char', equivalent: 'equivalent-char' };
+  data.rows.forEach(function(item) {
+    if (!item || !Array.isArray(item.t)) return;
+    var tr = document.createElement('tr');
+    tr.className = item.d ? 'diff-row' : 'same-row';
+    var lineCell = document.createElement('td');
+    lineCell.className = 'line-num';
+    lineCell.textContent = String(item.n == null ? '' : item.n).slice(0, 30);
+    var sourceCell = document.createElement('td');
+    sourceCell.textContent = String(item.s == null ? '' : item.s).slice(0, 100000);
+    var resultCell = document.createElement('td');
+    resultCell.className = 'result-cell';
+    item.t.slice(0, 100000).forEach(function(token) {
+      if (!token || !Object.prototype.hasOwnProperty.call(allowedKinds, token.k)) return;
+      var span = document.createElement('span');
+      if (allowedKinds[token.k]) span.className = allowedKinds[token.k];
+      span.textContent = String(token.x == null ? '' : token.x).slice(0, 100000);
+      resultCell.appendChild(span);
+    });
+    if (item.tc) {
+      var tc = document.createElement('span');
+      tc.className = 'shared-timecode';
+      tc.textContent = '▶ ' + String(item.tc).split(/\s*(?:-->|->|~)\s*/)[0];
+      tc.title = String(item.tc);
+      resultCell.appendChild(tc);
+    }
+    tr.appendChild(lineCell);
+    tr.appendChild(sourceCell);
+    tr.appendChild(resultCell);
+    tbody.appendChild(tr);
+  });
+  if (!tbody.children.length) tbody.innerHTML = '<tr><td colspan="3" class="empty-tip">本次结果没有需要展示的差异行</td></tr>';
+  return true;
+}
+
+function loadShareDataFromHash() {
+  var hash = window.location.hash || '';
+  if (hash.indexOf('#share=') === -1) return false;
+  try {
+    var rawEncoded = hash.substring(hash.indexOf('#share=') + 7);
+    if (!rawEncoded || rawEncoded.length > MAX_SHARE_ENCODED_CHARS) {
+      showToast('⚠️ 分享链接无效或内容过长');
+      return false;
+    }
+    var jsonStr = decodeURIComponent(escape(atob(decodeURIComponent(rawEncoded))));
+    if (jsonStr.length > MAX_SHARE_JSON_CHARS) {
+      showToast('⚠️ 分享内容超过安全处理上限');
+      return false;
+    }
+    var data = JSON.parse(jsonStr);
+    if (!data) return false;
+
+    if (data.mode === 'result-snapshot') {
+      var rendered = renderSharedResultSnapshot(data);
+      if (rendered) showToast('🔗 已加载只读对比结果');
+      return rendered;
+    }
+
+    // 兼容旧版 V5 分享链接，并限制 LCS 计算规模，避免恶意链接冻结页面。
+    var legacyLeft = data.l === undefined ? '' : String(data.l);
+    var legacyRight = data.r === undefined ? '' : String(data.r);
+    var legacyCustom = data.c === undefined ? '' : String(data.c);
+    if (legacyCustom.length > 1000 || legacyLeft.length + legacyRight.length > MAX_LEGACY_TOTAL_CHARS || legacyLeft.length * legacyRight.length > MAX_LEGACY_DIFF_CELLS) {
+      showToast('⚠️ 旧版分享内容超过安全计算上限，已拒绝加载');
+      return false;
+    }
+    document.getElementById('text-left').value = legacyLeft;
+    document.getElementById('text-right').value = legacyRight;
+    document.getElementById('opt-custom').value = legacyCustom;
+    if (data.d !== undefined) document.getElementById('opt-digits').checked = !!data.d;
+    if (data.p !== undefined) document.getElementById('opt-punct').checked = !!data.p;
+    if (data.o !== undefined) document.getElementById('opt-diff-only').checked = !!data.o;
+    if (data.eq !== undefined) document.getElementById('opt-equivalence').checked = !!data.eq;
+
+    onTextInput();
+    runCompare();
+    showToast('🔗 已通过分享链接成功加载比对内容！');
+    return true;
+  } catch(e) {
+    console.error('Failed to load share data:', e);
+    return false;
+  }
+}
+
+// ===== Keyboard Shortcuts =====
+document.addEventListener('keydown', function(e) {
+  if (document.body.classList.contains('shared-result-view')) return;
+  var activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+  var isTyping = activeTag === 'textarea' || (activeTag === 'input' && document.activeElement.type === 'text');
+
+  if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); runCompare(); }
+  if (e.ctrlKey && e.shiftKey && (e.key === 'E' || e.key === 'e')) { e.preventDefault(); exportHtmlReport(); }
+  if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c')) { e.preventDefault(); copyRichText(); }
+  if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); navigateDiff(-1); }
+  if (e.altKey && e.key === 'ArrowDown') { e.preventDefault(); navigateDiff(1); }
+
+  // 紧急暂停键：按 Esc 立即暂停播放，并解除输入框焦点
+  if (e.key === 'Escape') {
+    if (hasLoadedMedia() && !mediaState.element.paused) {
+      e.preventDefault();
+      mediaState.element.pause();
+    }
+    if (isTyping) {
+      document.activeElement.blur();
+    }
+    return;
+  }
+
+  // 播放器专用快捷键 (非在打字输入时生效)
+  if (!isTyping) {
+    if (e.code === 'Space' || e.key === 'k' || e.key === 'K') {
+      e.preventDefault();
+      togglePlayMedia();
+    } else if (e.key === 'c' || e.key === 'C') {
+      // 快捷键 C：复制当前播放位置的时间码
+      e.preventDefault();
+      copyCurrentPlaybackTimecode();
+    } else if (e.key === 'j' || e.key === 'J' || (e.key === 'ArrowLeft' && e.altKey)) {
+      e.preventDefault();
+      skipMediaTime(-3);
+    } else if (e.key === 'l' || e.key === 'L' || (e.key === 'ArrowRight' && e.altKey)) {
+      e.preventDefault();
+      skipMediaTime(3);
+    }
+  }
+});
+
+// ===== Util =====
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+// ===== Init =====
+window.onload = function() {
+  // Load theme
+  var saved = null;
+  try { saved = localStorage.getItem('diff-theme'); } catch(e) {}
+  if (saved) setTheme(saved);
+  // 加载严格同音词库：优先使用用户保存的，没有则自动加载预设
+  try {
+    var savedRules = localStorage.getItem(EQUIVALENCE_KEY);
+    if (savedRules !== null) {
+      document.getElementById('equivalence-rules').value = savedRules;
+    } else {
+      // 首次使用，自动填入预设词库
+      document.getElementById('equivalence-rules').value = PRESET_EQUIVALENCE_RULES;
+    }
+  } catch(e) {}
+  updateEquivalenceCount();
+  // Drag-drop
+  setupDragDrop();
+  setupMediaDragDrop();
+  // 清除旧版本曾长期保存在 localStorage 中的稿件历史；新版只保留当前标签页会话。
+  try { localStorage.removeItem(HISTORY_KEY); } catch(e) {}
+  // History
+  renderHistory();
+
+  // 如果 URL 带有 #share= 分享数据，优先自动还原分享的比对内容
+  var loadedShare = loadShareDataFromHash();
+  if (!loadedShare) {
+    // 否则填充 Demo 数据 (带标准 [00:00:00:00 --> 00:00:03:12] 时间码)
+    document.getElementById('text-left').value = "夜色慢慢落在安静的窗前\n远处的灯火照亮了长街\n晚风轻轻吹过树梢\n月光洒在小小的庭院\n我沿着熟悉的小路向前\n听见河水缓缓流过身边\n一片叶子落在肩头\n又想起那些遥远的从前\n春天曾经带来温柔的花香";
+    document.getElementById('text-right').value = "[00:00:00:00 --> 00:00:03:12] 夜色慢慢落在安静的窗前啊远处的灯火照亮了长街\n[00:00:03:12 --> 00:00:06:20] 晚风轻轻吹过树梢呀\n[00:00:06:20 --> 00:00:10:05] 月光洒在小小的庭院呢我沿着熟悉的小路向前走\n[00:00:10:05 --> 00:00:13:15] 听见河水缓缓流过身边\n[00:00:13:15 --> 00:00:17:00] 一片叶子落在肩头呀\n[00:00:17:00 --> 00:00:21:00] 又想起那些遥远的从前\n\n[00:00:21:00 --> 00:00:26:00] 春天曾经带来温柔的花香";
+    document.getElementById('opt-custom').value = "啊,呀,呢,吧";
+    document.getElementById('speed-min').value = "0";
+    document.getElementById('speed-sec').value = "26";
+    onTextInput();
+    runCompare();
+  }
+};
+</script>
+</body>
+</html>

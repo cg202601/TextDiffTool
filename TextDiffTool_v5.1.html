@@ -1672,11 +1672,56 @@ function refreshDiffNavigation() {
   buildDiffSegments();
 }
 
+function syncDiffNavigationToRow(row) {
+  if (!row) return false;
+  var rows = getVisibleDiffRows();
+  var index = rows.indexOf(row);
+  if (index < 0) return false;
+  currentDiffRowIndex = index;
+  rows.forEach(function(item){ item.classList.remove('active-diff-row'); });
+  row.classList.add('active-diff-row');
+  document.getElementById('diff-nav-current').textContent = index + 1;
+  return true;
+}
+
+function findPlaybackAnchoredDiffIndex(rows, direction, currentTime) {
+  if (!rows.length || !Number.isFinite(currentTime)) return -1;
+  var epsilon = 0.05;
+  if (direction > 0) {
+    for (var i = 0; i < rows.length; i++) {
+      var nextStart = parseFloat(rows[i].getAttribute('data-cue-start'));
+      if (!isNaN(nextStart) && nextStart > currentTime + epsilon) return i;
+    }
+    return 0;
+  }
+  for (var j = rows.length - 1; j >= 0; j--) {
+    var previousStart = parseFloat(rows[j].getAttribute('data-cue-start'));
+    if (!isNaN(previousStart) && previousStart < currentTime - epsilon) return j;
+  }
+  return rows.length - 1;
+}
+
 function navigateDiff(direction) {
   var rows = getVisibleDiffRows();
   if (!rows.length) { showToast('当前没有可导航的差异行'); return; }
   rows.forEach(function(row){ row.classList.remove('active-diff-row'); });
-  if (currentDiffRowIndex < 0) currentDiffRowIndex = direction > 0 ? 0 : rows.length - 1;
+  var playbackAnchoredIndex = -1;
+  if (hasLoadedMedia()) {
+    var curTime = mediaState.element.currentTime;
+    var playingIndex = rows.indexOf(mediaState.currentPlayingRow);
+    if (playingIndex >= 0) {
+      var playingStart = parseFloat(rows[playingIndex].getAttribute('data-cue-start'));
+      var playingEnd = parseFloat(rows[playingIndex].getAttribute('data-cue-end'));
+      var stillInPlayingRow = !isNaN(playingStart) && curTime >= playingStart - 0.25 &&
+        (isNaN(playingEnd) || curTime < playingEnd + 0.6);
+      if (stillInPlayingRow) playbackAnchoredIndex = (playingIndex + direction + rows.length) % rows.length;
+    }
+    if (playbackAnchoredIndex < 0) {
+      playbackAnchoredIndex = findPlaybackAnchoredDiffIndex(rows, direction, curTime);
+    }
+  }
+  if (playbackAnchoredIndex >= 0) currentDiffRowIndex = playbackAnchoredIndex;
+  else if (currentDiffRowIndex < 0) currentDiffRowIndex = direction > 0 ? 0 : rows.length - 1;
   else currentDiffRowIndex = (currentDiffRowIndex + direction + rows.length) % rows.length;
   var target = rows[currentDiffRowIndex];
   target.classList.add('active-diff-row');
@@ -2456,6 +2501,8 @@ function onMediaTimeUpdate() {
       }
       matchedRow.classList.add('playing-row');
       mediaState.currentPlayingRow = matchedRow;
+      // 播放位置变化时同步差异导航，避免“下一处”仍从旧索引或第一处开始。
+      syncDiffNavigationToRow(matchedRow);
 
       // 更新正在播放状态文字
       var lineNo = matchedRow.cells[0] ? matchedRow.cells[0].textContent.trim() : '';

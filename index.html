@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; font-src 'none'; base-uri 'none'; form-action 'none'">
-<title>字幕与文本差异对比工具 v5.1 (严格同音版)</title>
+<title>字幕与文本差异对比工具 v5.2 (严格同音版)</title>
 <style>
   /* ===== Theme System ===== */
   :root, [data-theme="light"] {
@@ -555,7 +555,7 @@
   <button type="button" class="fmb-play-btn" id="fmb-play-btn" onclick="togglePlayMedia()" title="播放/暂停 (快捷键: 空格 Space)">▶</button>
   <button type="button" class="fmb-btn" onclick="skipMediaTime(-3)" title="后退3秒重听 (Alt+←)">⏪ -3s</button>
   <button type="button" class="fmb-btn" onclick="skipMediaTime(3)" title="前进3秒 (Alt+→)">+3s ⏩</button>
-  <button type="button" class="fmb-btn fmb-copy-tc" id="fmb-btn-copy-tc" onclick="copyCurrentPlaybackTimecode()" title="复制当前所在句的开头时间码 (快捷键: C)">⏱ 复制本句开头 <b id="fmb-cur-tc">00:00:00:00</b></button>
+  <button type="button" class="fmb-btn fmb-copy-tc" id="fmb-btn-copy-tc" onclick="copyCurrentPlaybackTimecode()" title="复制当前播放或暂停位置的时间码 (快捷键: C)">⏱ 复制当前时间码 <b id="fmb-cur-tc">00:00:00:00</b></button>
   <button type="button" class="fmb-btn" onclick="loopCurrentSentence()" title="反复循环播放当前这句">🔁 循环本句</button>
   <button type="button" class="fmb-btn" onclick="navigateDiff(-1)" title="上一处差异 (Alt+↑)">⬆ 上一差异</button>
   <button type="button" class="fmb-btn" onclick="navigateDiff(1)" title="下一处差异 (Alt+↓)">⬇ 下一差异</button>
@@ -587,7 +587,7 @@
 
 <div class="container">
   <div class="header-bar">
-    <h1>🔍 文本差异比对与校对工具 <small style="font-size:10px;color:var(--text-muted);font-weight:600;background:rgba(37,99,235,0.1);color:var(--accent);padding:1px 6px;border-radius:4px;">v5.1 严格同音版</small></h1>
+    <h1>🔍 文本差异比对与校对工具 <small style="font-size:10px;color:var(--text-muted);font-weight:600;background:rgba(37,99,235,0.1);color:var(--accent);padding:1px 6px;border-radius:4px;">v5.2 严格同音版</small></h1>
     <div class="header-right">
       <div class="theme-pills">
         <button class="tp active" onclick="setTheme('light')" title="浅色模式">☀️</button>
@@ -615,7 +615,7 @@
     <label class="control-group"><input type="checkbox" id="opt-diff-only" checked> 仅看差异行</label>
     <div class="control-group">
       <span>自定义忽略字:</span>
-      <input type="text" id="opt-custom" placeholder="例如: 啊,呀,呢,吧">
+      <input type="text" id="opt-custom" value="啊,呀,呢,吧,嗯,哎,呃,哦" placeholder="例如: 啊,呀,呢,吧,嗯,哎,呃,哦">
     </div>
     <label class="control-group"><input type="checkbox" id="opt-equivalence" checked> 忽略严格同音字</label>
     <button class="mini-btn" type="button" onclick="toggleEquivalencePanel()">⚙️ 严格同音词库</button>
@@ -659,8 +659,8 @@
         <div class="speed-source-wrap">
           <span>测算基准:</span>
           <select id="speed-source" onchange="updateSpeedCalc()">
-            <option value="right" selected id="opt-src-right">待核对稿 / 实际录音</option>
-            <option value="left" id="opt-src-left">底稿 / 原文</option>
+            <option value="right" id="opt-src-right">待核对稿 / 实际录音</option>
+            <option value="left" selected id="opt-src-left">底稿 / 原文</option>
           </select>
         </div>
         <span class="speed-detected-tag" id="speed-detected-tag" style="display:none;" onclick="applyDetectedDuration()" title="点击将字幕识别的时长填入">
@@ -790,8 +790,8 @@
           <button type="button" class="media-play-btn" id="btn-media-play" onclick="togglePlayMedia()" title="播放/暂停 (快捷键: 空格)">▶</button>
           <button type="button" class="media-skip-btn" onclick="skipMediaTime(-3)" title="后退3秒">⏪ -3s</button>
           <button type="button" class="media-skip-btn" onclick="skipMediaTime(3)" title="前进3秒">+3s ⏩</button>
-          <button type="button" class="mini-btn" id="btn-copy-cur-tc" onclick="copyCurrentPlaybackTimecode()" title="复制当前所在句的开头时间码 (快捷键: C)">⏱ 复制本句开头</button>
-          
+          <button type="button" class="mini-btn" id="btn-copy-cur-tc" onclick="copyCurrentPlaybackTimecode()" title="复制当前播放或暂停位置的时间码 (快捷键: C)">⏱ 复制当前时间码</button>
+
           <select class="media-rate-select" id="media-playback-rate" onchange="changeMediaRate(this.value)" title="播放倍速">
             <option value="0.75">0.75x</option>
             <option value="1.0" selected>1.0x (原速)</option>
@@ -1071,6 +1071,7 @@ function detectPastedSubtitleExt(text) {
 function capturePastedSubtitle(side) {
   var targetId = side === 'left' ? 'text-left' : 'text-right';
   var value = document.getElementById(targetId).value;
+  if (subtitleCueData[side] && subtitleCueData[side].sourceText !== value) subtitleCueData[side] = null;
   if (!value || !value.trim()) return 0;
   var ext = detectPastedSubtitleExt(value);
   if (!ext) return 0;
@@ -1078,8 +1079,7 @@ function capturePastedSubtitle(side) {
   if (!parsed.cues.length) return 0;
   var timedCount = parsed.cues.filter(function(cue){ return cue.start !== null && cue.start !== undefined; }).length;
   if (!timedCount) return 0;
-  document.getElementById(targetId).value = parsed.text;
-  subtitleCueData[side] = { cues: parsed.cues, parsedText: parsed.text, fileName: '粘贴的字幕' };
+  subtitleCueData[side] = { cues: parsed.cues, parsedText: parsed.text, sourceText: value, fileName: '粘贴的字幕' };
   document.getElementById('file-info-' + side).textContent = '⏱ 已识别保留 ' + timedCount + ' 条时间码';
   return timedCount;
 }
@@ -1124,14 +1124,14 @@ function loadFile(file, targetId) {
     var raw = e.target.result;
     var detectedExt = ext === '.txt' ? detectPastedSubtitleExt(raw) : '';
     var parsed = parseSubtitle(raw, detectedExt || ext);
-    document.getElementById(targetId).value = parsed.text;
+    document.getElementById(targetId).value = raw;
     var side = targetId === 'text-left' ? 'left' : 'right';
-    subtitleCueData[side] = parsed.cues.length ? { cues: parsed.cues, parsedText: parsed.text, fileName: file.name } : null;
+    subtitleCueData[side] = parsed.cues.length ? { cues: parsed.cues, parsedText: parsed.text, sourceText: document.getElementById(targetId).value, fileName: file.name } : null;
     var timedCueCount = parsed.cues.filter(function(cue){ return cue.start !== null && cue.start !== undefined; }).length;
     document.getElementById('file-info-' + side).textContent =
       '📄 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB' +
       (timedCueCount ? '，保留 ' + timedCueCount + ' 条时间码' : '') + ')';
-    
+
     // 检查并提取字幕时间
     var durSec = extractSubtitleDuration(raw, ext);
     if (durSec > 0) {
@@ -1508,6 +1508,13 @@ function onTextInput() {
   updateSpeedCalc();
 }
 
+// 输入框与历史记录保留原稿；只有内部比对使用解析后的字幕正文。
+function getComparisonText(side) {
+  var value = document.getElementById('text-' + side).value;
+  var data = subtitleCueData[side];
+  return data && data.sourceText === value ? data.parsedText : value;
+}
+
 function getCueRanges(side) {
   var data = subtitleCueData[side];
   if (!data || !data.cues || !data.cues.length) return [];
@@ -1612,7 +1619,7 @@ function copyTimecodeText(value) {
   if (!startOnly) startOnly = value.trim();
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(startOnly).then(function(){ showToast('✅ 已复制起始时间码 ' + startOnly); }).catch(function(){ fallbackCopy(startOnly); });
+    navigator.clipboard.writeText(startOnly).then(function(){ showToast('✅ 已复制时间码 ' + startOnly); }).catch(function(){ fallbackCopy(startOnly); });
   } else fallbackCopy(startOnly);
 }
 
@@ -1777,14 +1784,16 @@ function runCompare() {
   var rawLeft = document.getElementById('text-left').value;
   var rawRight = document.getElementById('text-right').value;
   if (!rawLeft.trim() && !rawRight.trim()) { showToast('⚠️ 请先输入内容'); return; }
-  var cleanLeft = cleanText(rawLeft);
-  var cleanRight = cleanText(rawRight);
+  var comparisonLeft = getComparisonText('left');
+  var comparisonRight = getComparisonText('right');
+  var cleanLeft = cleanText(comparisonLeft);
+  var cleanRight = cleanText(comparisonRight);
   var diffs = diffChars(cleanLeft, cleanRight);
   analyzeDiffs(diffs);
   var tbody = document.getElementById('diff-tbody');
   tbody.innerHTML = '';
   var diffOnly = document.getElementById('opt-diff-only').checked;
-  var leftLines = rawLeft.split('\n').map(function(l){return cleanText(l);}).filter(Boolean);
+  var leftLines = comparisonLeft.split('\n').map(function(l){return cleanText(l);}).filter(Boolean);
   var curDiffIdx = 0;
   var diffLineCount = 0;
 
@@ -1984,13 +1993,44 @@ function clearHistory() {
 }
 
 // ===== Export HTML Report =====
+// 随报告一起导出，打开本地 HTML 文件时也可复制完整稿件。
+function copyReportSource(button) {
+  var textarea = document.getElementById(button.getAttribute('data-copy-source'));
+  var originalLabel = '一键复制';
+  clearTimeout(button.copyResetTimer);
+  button.disabled = true;
+  function finish(success) {
+    button.disabled = false;
+    button.textContent = success ? '✓ 已复制' : '复制失败，请选中文本复制';
+    button.copyResetTimer = setTimeout(function() { button.textContent = originalLabel; }, 2500);
+  }
+  function fallback() {
+    var previousFocus = document.activeElement;
+    var start = textarea.selectionStart;
+    var end = textarea.selectionEnd;
+    textarea.focus();
+    textarea.select();
+    var success = false;
+    try { success = document.execCommand('copy'); } catch (e) {}
+    if (success) {
+      textarea.setSelectionRange(start, end);
+      if (previousFocus && previousFocus.focus) previousFocus.focus();
+    }
+    finish(success);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try { navigator.clipboard.writeText(textarea.value).then(function() { finish(true); }, fallback); }
+    catch (e) { fallback(); }
+  } else fallback();
+}
+
 function exportHtmlReport() {
   var tbody = document.getElementById('diff-tbody');
   if (!tbody.innerHTML || tbody.querySelector('.empty-tip')) { showToast('⚠️ 请先执行对比后再导出'); return; }
   var now = new Date();
   var ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  var leftText = document.getElementById('text-left').value.trim();
-  var rightText = document.getElementById('text-right').value.trim();
+  var leftText = document.getElementById('text-left').value;
+  var rightText = document.getElementById('text-right').value;
   var leftPure = getPureCharCount(leftText);
   var rightPure = getPureCharCount(rightText);
   var diffCount = tbody.querySelectorAll('tr.diff-row').length;
@@ -2029,15 +2069,17 @@ function exportHtmlReport() {
     '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;background:#f1f5f9;color:#1e293b;padding:24px}.rpt{max-width:1200px;margin:0 auto;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.06);padding:28px}.rpt h1{font-size:20px;margin-bottom:8px}.meta{font-size:13px;color:#64748b;margin-bottom:16px}.meta span{display:inline-block;background:#f1f5f9;padding:2px 10px;border-radius:4px;margin-right:8px}.legend{display:flex;gap:16px;font-size:13px;margin-bottom:12px;padding:10px 14px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0}' +
     '.tag-del{background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:3px;font-weight:600}.tag-add{background:#dcfce7;color:#16a34a;padding:2px 6px;border-radius:3px;font-weight:600}' +
     '.diff-table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.6;border:1px solid #e2e8f0}.diff-table th{background:#f8fafc;padding:8px 12px;text-align:left;border-bottom:1px solid #e2e8f0;font-weight:600}.diff-table td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:top}.diff-table tr.diff-row{background:#fffbeb}.diff-table tr.same-row{background:#fff;color:#64748b}.line-num{width:40px;text-align:center;color:#94a3b8;background:#f8fafc;border-right:1px solid #e2e8f0;font-size:12px}.del-char{background:#fecaca;color:#991b1b;text-decoration:line-through;padding:1px 3px;margin:0 1px;border-radius:2px;font-weight:600}.add-char{background:#bbf7d0;color:#166534;padding:1px 3px;margin:0 1px;border-radius:2px;font-weight:600}.homophone-char{background:#ede9fe;color:#6d28d9;padding:1px 3px;margin:0 1px;border-radius:2px;font-weight:700;border-bottom:1px dashed #8b5cf6}.equivalent-char{color:#64748b;border-bottom:1px dotted #64748b;padding:1px 2px}.result-cell{position:relative;padding-right:122px!important}.timecode-export{position:absolute;right:8px;top:7px;color:#64748b;border:1px solid #cbd5e1;border-radius:12px;padding:1px 7px;font-size:10px}' +
-    '.src{margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0}.src summary{font-size:14px;font-weight:600;color:#475569;cursor:pointer;padding:6px 0}.src pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;font-size:13px;white-space:pre-wrap;word-break:break-all;line-height:1.6;margin-top:8px}.sl{font-size:12px;font-weight:600;color:#64748b;margin-top:10px;margin-bottom:4px}.ft{margin-top:20px;text-align:center;font-size:12px;color:#94a3b8}' +
-    '@media print{body{background:#fff;padding:0}.rpt{box-shadow:none}.del-char{background:#fee2e2!important;color:#dc2626!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.add-char{background:#dcfce7!important;color:#16a34a!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.diff-table tr.diff-row{background:#fefce8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head>\n' +
+    '.sources{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}.source-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px}.sources label{display:block;font-size:14px;font-weight:600}.source-copy{flex-shrink:0;border:1px solid #cbd5e1;border-radius:6px;padding:6px 12px;background:#fff;color:#2563eb;font-size:13px;cursor:pointer}.source-copy:hover{background:#eff6ff;border-color:#2563eb}.source-copy:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.source-copy:disabled{opacity:.6;cursor:wait}.sources textarea{display:block;width:100%;height:280px;resize:vertical;padding:12px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;color:#1e293b;font:13px/1.7 sans-serif;white-space:pre-wrap}.sources textarea:focus{outline:2px solid #2563eb;outline-offset:2px}@media(max-width:700px){.sources{grid-template-columns:1fr}}.ft{margin-top:20px;text-align:center;font-size:12px;color:#94a3b8}' +
+    '.print-sources{display:none}.print-sources pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.7 sans-serif}.print-sources h2,.print-sources h3{margin:16px 0 8px}' +
+    '@media print{.sources{display:none}.print-sources{display:block}body{background:#fff;padding:0}.rpt{box-shadow:none}.del-char{background:#fee2e2!important;color:#dc2626!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.add-char{background:#dcfce7!important;color:#16a34a!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.diff-table tr.diff-row{background:#fefce8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head>\n' +
     '<body><div class="rpt"><h1>📋 文本差异对比报告</h1><div class="meta"><span>📅 ' + ts + '</span><span>📊 共 ' + totalCount + ' 行，' + diffCount + ' 行有差异</span></div>' +
+    '<section class="sources" aria-label="完整原始稿件"><div><div class="source-heading"><label for="report-left">底稿 / 原文（纯字数 ' + leftPure + ' 字）</label><button type="button" class="source-copy" data-copy-source="report-left" onclick="copyReportSource(this)" aria-label="一键复制底稿全文" aria-live="polite">一键复制</button></div><textarea id="report-left" readonly spellcheck="false">\n' + escapeHtml(leftText) + '</textarea></div><div><div class="source-heading"><label for="report-right">比对文本 / 音视频稿件（纯字数 ' + rightPure + ' 字）</label><button type="button" class="source-copy" data-copy-source="report-right" onclick="copyReportSource(this)" aria-label="一键复制音视频稿件全文" aria-live="polite">一键复制</button></div><textarea id="report-right" readonly spellcheck="false">\n' + escapeHtml(rightText) + '</textarea></div></section>' +
     statsHtml +
     speedReportHtml +
     '<div class="legend"><span><span class="tag-del">红色删除线</span> = 底稿有而漏了</span><span><span class="tag-add">绿色背景</span> = 比对文本多出的字</span><span><span class="tag-del">原字</span>＋<span class="homophone-char">识别字</span> = 未确认同音疑似</span><span><span class="equivalent-char">灰色</span> = 严格同音（不计错）</span></div>' +
     tableHtml +
-    '<div class="src"><details><summary>📎 查看原始文本</summary><div class="sl">底稿 / 原文 (纯字数 ' + leftPure + ' 字)：</div><pre>' + escapeHtml(leftText) + '</pre><div class="sl">比对文本 (纯字数 ' + rightPure + ' 字)：</div><pre>' + escapeHtml(rightText) + '</pre></details></div>' +
-    '<div class="ft">由「文本差异比对与校对工具」生成</div></div></body></html>';
+    '<section class="print-sources"><h2>完整原始稿件</h2><h3>底稿 / 原文</h3><pre>' + escapeHtml(leftText) + '</pre><h3>比对文本 / 音视频稿件</h3><pre>' + escapeHtml(rightText) + '</pre></section>' +
+    '<div class="ft">由「文本差异比对与校对工具」生成</div></div><script>' + copyReportSource.toString() + '<\/script></body></html>';
   var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2150,7 +2192,7 @@ function loadMediaFile(file) {
   var isVideo = file.type.indexOf('video') !== -1 || /\.(mp4|webm|ogg|mov)$/i.test(file.name);
   var wrap = document.getElementById('media-video-wrap');
   var placeholder = document.getElementById('media-placeholder');
-  
+
   if (isVideo) {
     placeholder.style.display = 'none';
     mediaState.element.style.display = 'block';
@@ -2210,6 +2252,7 @@ function loadMediaFile(file) {
   };
 
   mediaState.element.ontimeupdate = onMediaTimeUpdate;
+  mediaState.element.onseeked = onMediaTimeUpdate;
 }
 
 function closeMedia() {
@@ -2333,14 +2376,6 @@ function formatFrameTimecode(sec, fps) {
 
 function getCurrentTimecodeString() {
   if (!mediaState.element) return '00:00:00:00';
-  if (mediaState.currentPlayingRow) {
-    var timeBtn = mediaState.currentPlayingRow.querySelector('.timecode-btn');
-    if (timeBtn) {
-      var tc = timeBtn.getAttribute('data-timecode') || '';
-      var clean = tc.split(/\s*(?:-->|->|~)\s*/)[0].trim().replace(/^[\[\s]+/, '').replace(/[\]\s]+$/, '');
-      if (clean) return clean;
-    }
-  }
   return formatFrameTimecode(mediaState.element.currentTime || 0, 25);
 }
 
@@ -2447,7 +2482,7 @@ function onMediaTimeUpdate() {
     if (curSeg) {
       pill.style.display = 'inline-flex';
       pill.textContent = '🔁 差异循环中 (第 ' + (curSeg.diffListIndex + 1) + '/' + mediaState.diffSegments.length + ' 处)';
-      
+
       // 检测是否已达差异段结束点
       if (curTime >= curSeg.end - 0.05 && (now - mediaState.lastLoopTriggerTime > 600)) {
         mediaState.lastLoopTriggerTime = now;
@@ -2957,7 +2992,7 @@ window.onload = function() {
     // 否则填充 Demo 数据 (带标准 [00:00:00:00 --> 00:00:03:12] 时间码)
     document.getElementById('text-left').value = "夜色慢慢落在安静的窗前\n远处的灯火照亮了长街\n晚风轻轻吹过树梢\n月光洒在小小的庭院\n我沿着熟悉的小路向前\n听见河水缓缓流过身边\n一片叶子落在肩头\n又想起那些遥远的从前\n春天曾经带来温柔的花香";
     document.getElementById('text-right').value = "[00:00:00:00 --> 00:00:03:12] 夜色慢慢落在安静的窗前啊远处的灯火照亮了长街\n[00:00:03:12 --> 00:00:06:20] 晚风轻轻吹过树梢呀\n[00:00:06:20 --> 00:00:10:05] 月光洒在小小的庭院呢我沿着熟悉的小路向前走\n[00:00:10:05 --> 00:00:13:15] 听见河水缓缓流过身边\n[00:00:13:15 --> 00:00:17:00] 一片叶子落在肩头呀\n[00:00:17:00 --> 00:00:21:00] 又想起那些遥远的从前\n\n[00:00:21:00 --> 00:00:26:00] 春天曾经带来温柔的花香";
-    document.getElementById('opt-custom').value = "啊,呀,呢,吧";
+    document.getElementById('opt-custom').value = "啊,呀,呢,吧,嗯,哎,呃,哦";
     document.getElementById('speed-min').value = "0";
     document.getElementById('speed-sec').value = "26";
     onTextInput();
